@@ -1,0 +1,39 @@
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { ReactQueryDevtools } from 'react-query/devtools';
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import ruLocale from 'date-fns/locale/ru';
+import { theme } from './theme';
+import { AuthProvider } from './contexts/AuthContext';
+import AppRoutes from './Routes';
+import { QUERY_CONFIG } from './config/app.config';
+
+// Создаем экземпляр клиента для React Query с настройками против дублирования запросов
+const queryClient = new QueryClient(QUERY_CONFIG);
+
+/**
+ * Главный компонент приложения
+ * @returns {React.ReactNode}
+ */
+const App = () => {
+  return (
+    <BrowserRouter>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ruLocale}>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <AppRoutes />
+            </AuthProvider>
+            {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
+          </QueryClientProvider>
+        </LocalizationProvider>
+      </ThemeProvider>
+    </BrowserRouter>
+  );
+};
+
+export default App; 
