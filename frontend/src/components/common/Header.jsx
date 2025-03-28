@@ -9,18 +9,22 @@ import {
   Menu,
   MenuItem,
   Avatar,
-  Tooltip
+  Tooltip,
+  Divider
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../../contexts/AuthContext';
 import LoginIcon from '@mui/icons-material/Login';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
+import ThemeLanguageSwitcher from './ThemeLanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 
 const Header = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthContext();
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const { t } = useTranslation();
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -60,12 +64,14 @@ const Header = () => {
           sx={{ flexGrow: 1, cursor: 'pointer' }} 
           onClick={() => navigate('/')}
         >
-          Beauty Salon
+          {t('common.beauty_salon')}
         </Typography>
+        
+        <ThemeLanguageSwitcher />
         
         {user ? (
           <>
-            <Tooltip title="Аккаунт">
+            <Tooltip title={t('common.profile')}>
               <IconButton onClick={handleMenuOpen} color="inherit">
                 <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
                   {user.name ? user.name.charAt(0).toUpperCase() : <AccountCircleIcon />}
@@ -87,12 +93,13 @@ const Header = () => {
             >
               <MenuItem onClick={handleNavigateProfile}>
                 <AccountCircleIcon fontSize="small" sx={{ mr: 1 }} />
-                {user.role === 'admin' ? 'Панель администратора' : 
-                user.role === 'employee' ? 'Панель сотрудника' : 'Личный кабинет'}
+                {user.role === 'admin' ? t('header.admin_panel') : 
+                user.role === 'employee' ? t('header.employee_panel') : t('header.client_panel')}
               </MenuItem>
+              <Divider />
               <MenuItem onClick={handleLogout}>
                 <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-                Выйти
+                {t('common.logout')}
               </MenuItem>
             </Menu>
           </>
@@ -102,7 +109,7 @@ const Header = () => {
             startIcon={<LoginIcon />} 
             onClick={handleLogin}
           >
-            Войти
+            {t('common.login')}
           </Button>
         )}
       </Toolbar>

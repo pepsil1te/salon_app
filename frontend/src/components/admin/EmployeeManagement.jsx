@@ -217,15 +217,21 @@ const EmployeeManagement = () => {
   // Открытие диалога редактирования сотрудника
   const handleOpenEditDialog = (employee) => {
     setDialogMode('edit');
+    
+    // Получаем service_ids как массив числовых идентификаторов услуг
+    const serviceIds = Array.isArray(employee.service_ids) 
+      ? employee.service_ids.map(id => typeof id === 'number' ? id : parseInt(id, 10)) 
+      : [];
+    
     setEmployeeData({
-      first_name: employee.first_name,
-      last_name: employee.last_name,
-      email: employee.email || '',
-      phone: employee.contact_info?.phone || '',
+      first_name: employee.first_name || (employee.name ? employee.name.split(' ')[0] : ''),
+      last_name: employee.last_name || (employee.name ? employee.name.split(' ').slice(1).join(' ') : ''),
+      email: employee.email || employee.contact_info?.email || '',
+      phone: employee.phone || employee.contact_info?.phone || '',
       position: employee.position || '',
-      salon_id: employee.salon_id.toString(),
+      salon_id: employee.salon_id ? employee.salon_id.toString() : '',
       is_active: employee.is_active !== false,
-      services: employee.service_ids || [],
+      services: serviceIds,
       working_hours: employee.working_hours || {},
       photo_url: employee.photo_url || ''
     });
@@ -333,23 +339,48 @@ const EmployeeManagement = () => {
   };
 
   // Обработчик сохранения сотрудника
-  const handleSaveEmployee = () => {
+  const handleSaveEmployee = async () => {
     if (validateForm()) {
-      const employeeDataToSave = {
-        ...employeeData,
-        salon_id: parseInt(employeeData.salon_id),
-        contact_info: {
-          phone: employeeData.phone,
-          email: employeeData.email
+      try {
+        // Подготовка данных для отправки на сервер
+        const name = `${employeeData.first_name} ${employeeData.last_name}`.trim();
+        
+        const preparedData = {
+          // Важно сохранить имя как отдельное поле name
+          name: name,
+          // Используем первое имя и фамилию как отдельные поля для UI
+          first_name: employeeData.first_name,
+          last_name: employeeData.last_name,
+          // Обновляем контактную информацию
+          contact_info: {
+            phone: employeeData.phone || '',
+            email: employeeData.email || ''
+          },
+          // Используем стандартную роль 'employee' вместо должности для поля role
+          role: 'employee', 
+          // Сохраняем должность в отдельное поле position
+          position: employeeData.position || '',
+          working_hours: employeeData.working_hours || {},
+          is_active: employeeData.is_active,
+          salon_id: employeeData.salon_id ? parseInt(employeeData.salon_id, 10) : null,
+          service_ids: employeeData.services ? employeeData.services.map(id => parseInt(id, 10)) : [],
+          photo_url: employeeData.photo_url || ''
+        };
+        
+        console.log('Отправляемые данные:', preparedData);
+        
+        if (dialogMode === 'add') {
+          await createEmployeeMutation.mutateAsync(preparedData);
+        } else {
+          await updateEmployeeMutation.mutateAsync({ id: selectedEmployeeId, data: preparedData });
         }
-      };
-      
-      if (dialogMode === 'add') {
-        createEmployeeMutation.mutate(employeeDataToSave);
-      } else {
-        updateEmployeeMutation.mutate({ 
-          id: selectedEmployeeId, 
-          data: employeeDataToSave 
+        
+        handleCloseDialog();
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: `Ошибка при сохранении данных сотрудника: ${error.message}`,
+          severity: 'error'
         });
       }
     }

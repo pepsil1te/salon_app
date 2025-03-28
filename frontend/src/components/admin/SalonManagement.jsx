@@ -35,7 +35,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip
+  Tooltip,
+  FormControlLabel,
+  Switch,
+  Menu
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { salonApi } from '../../api/salons';
@@ -50,6 +53,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import { useNavigate } from 'react-router-dom';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 const SalonManagement = () => {
   const queryClient = useQueryClient();
@@ -329,8 +333,21 @@ const SalonManagement = () => {
       errors.phone = 'Неверный формат телефона';
     }
     
-    if (!salonData.working_hours.trim()) {
+    // Проверяем рабочие часы - теперь это объект, а не строка
+    if (typeof salonData.working_hours === 'string') {
+      // Если по какой-то причине это всё еще строка, проверяем как раньше
+      if (!salonData.working_hours.trim()) {
+        errors.working_hours = 'Часы работы обязательны';
+      }
+    } else if (!salonData.working_hours || typeof salonData.working_hours !== 'object') {
+      // Проверка на null/undefined или неверный тип
       errors.working_hours = 'Часы работы обязательны';
+    } else {
+      // Проверяем, есть ли хотя бы один рабочий день
+      const hasWorkingDay = Object.values(salonData.working_hours).some(hours => hours !== null);
+      if (!hasWorkingDay) {
+        errors.working_hours = 'Должен быть указан хотя бы один рабочий день';
+      }
     }
     
     setValidationErrors(errors);
@@ -534,6 +551,279 @@ const SalonManagement = () => {
     setSelectedSalonId(null);
   };
 
+  // Добавим новый компонент для выбора времени работы
+  const TimeRangePicker = ({ value, onChange }) => {
+    // Состояние для хранения рабочих часов по дням недели
+    const [workingHours, setWorkingHours] = useState(() => {
+      try {
+        // Пробуем распарсить значение, если оно передано как объект
+        if (typeof value === 'object' && value !== null) {
+          return value;
+        }
+        
+        // Если передано как строка и в JSON формате
+        if (typeof value === 'string' && value.startsWith('{') && value.endsWith('}')) {
+          return JSON.parse(value);
+        }
+        
+        // Иначе используем значение по умолчанию
+        return {
+          '1': { start: '09:00', end: '18:00' }, // Пн
+          '2': { start: '09:00', end: '18:00' }, // Вт
+          '3': { start: '09:00', end: '18:00' }, // Ср
+          '4': { start: '09:00', end: '18:00' }, // Чт
+          '5': { start: '09:00', end: '18:00' }, // Пт
+          '6': { start: '10:00', end: '16:00' }, // Сб
+          '0': null  // Вс - выходной
+        };
+      } catch (error) {
+        console.error('Ошибка при парсинге рабочих часов:', error);
+        
+        // Возвращаем дефолтное значение в случае ошибки
+        return {
+          '1': { start: '09:00', end: '18:00' }, // Пн
+          '2': { start: '09:00', end: '18:00' }, // Вт
+          '3': { start: '09:00', end: '18:00' }, // Ср
+          '4': { start: '09:00', end: '18:00' }, // Чт
+          '5': { start: '09:00', end: '18:00' }, // Пт
+          '6': { start: '10:00', end: '16:00' }, // Сб
+          '0': null  // Вс - выходной
+        };
+      }
+    });
+    
+    // Названия дней недели
+    const dayNames = {
+      '1': 'Понедельник',
+      '2': 'Вторник',
+      '3': 'Среда',
+      '4': 'Четверг',
+      '5': 'Пятница',
+      '6': 'Суббота',
+      '0': 'Воскресенье'
+    };
+    
+    // Порядок дней недели для отображения (начиная с понедельника)
+    const daysOrder = ['1', '2', '3', '4', '5', '6', '0'];
+    
+    // Обработчик изменения времени работы
+    const handleTimeChange = (day, field, value) => {
+      const updatedHours = { ...workingHours };
+      
+      // Если день был закрыт (null), создаем новую запись с дефолтными значениями
+      if (!updatedHours[day] && field !== 'isOpen') {
+        updatedHours[day] = { start: '09:00', end: '18:00' };
+      }
+      
+      // Обрабатываем переключение выходного дня
+      if (field === 'isOpen') {
+        updatedHours[day] = value ? { start: '09:00', end: '18:00' } : null;
+      } else {
+        updatedHours[day][field] = value;
+      }
+      
+      setWorkingHours(updatedHours);
+      onChange(updatedHours);
+    };
+    
+    // Быстрое копирование расписания
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [dayToCopyFrom, setDayToCopyFrom] = useState(null);
+    
+    const handleCopyClick = (event, day) => {
+      setAnchorEl(event.currentTarget);
+      setDayToCopyFrom(day);
+    };
+    
+    const handleCopyClose = () => {
+      setAnchorEl(null);
+      setDayToCopyFrom(null);
+    };
+    
+    const handleCopyTo = (targetDay) => {
+      if (dayToCopyFrom !== null && targetDay !== dayToCopyFrom) {
+        const updatedHours = { ...workingHours };
+        updatedHours[targetDay] = workingHours[dayToCopyFrom] 
+          ? { ...workingHours[dayToCopyFrom] } 
+          : null;
+        
+        setWorkingHours(updatedHours);
+        onChange(updatedHours);
+      }
+      handleCopyClose();
+    };
+    
+    // Быстрая установка рабочих дней будни/выходные
+    const handleQuickSet = (preset) => {
+      const updatedHours = { ...workingHours };
+      
+      if (preset === 'weekdays') {
+        // Рабочие дни - Пн-Пт: 9:00-18:00, выходные - Сб, Вс
+        for (let i = 1; i <= 5; i++) {
+          updatedHours[i] = { start: '09:00', end: '18:00' };
+        }
+        updatedHours['6'] = null;
+        updatedHours['0'] = null;
+      } else if (preset === 'everyday') {
+        // Рабочие дни - каждый день 9:00-18:00
+        for (let i = 0; i <= 6; i++) {
+          updatedHours[i] = { start: '09:00', end: '18:00' };
+        }
+      } else if (preset === 'weekends-short') {
+        // Рабочие дни - Пн-Пт: 9:00-18:00, Сб: 10:00-16:00, Вс: выходной
+        for (let i = 1; i <= 5; i++) {
+          updatedHours[i] = { start: '09:00', end: '18:00' };
+        }
+        updatedHours['6'] = { start: '10:00', end: '16:00' };
+        updatedHours['0'] = null;
+      }
+      
+      setWorkingHours(updatedHours);
+      onChange(updatedHours);
+    };
+    
+    // Часы для выбора (с 7:00 до 24:00)
+    const timeOptions = [];
+    for (let hour = 7; hour <= 23; hour++) {
+      for (let minute of ['00', '30']) {
+        timeOptions.push(`${hour < 10 ? '0' + hour : hour}:${minute}`);
+      }
+    }
+    timeOptions.push('24:00');
+    
+    return (
+      <Box>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          Установите время работы салона для каждого дня недели
+        </Typography>
+        
+        <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
+          <Button 
+            size="small" 
+            variant="outlined" 
+            onClick={() => handleQuickSet('weekdays')}
+          >
+            Пн-Пт (9-18)
+          </Button>
+          <Button 
+            size="small" 
+            variant="outlined" 
+            onClick={() => handleQuickSet('everyday')}
+          >
+            Ежедневно (9-18)
+          </Button>
+          <Button 
+            size="small" 
+            variant="outlined" 
+            onClick={() => handleQuickSet('weekends-short')}
+          >
+            Пн-Пт (9-18), Сб (10-16)
+          </Button>
+        </Box>
+        
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          {daysOrder.map(day => (
+            <Grid container spacing={2} key={day} sx={{ mb: 1.5, alignItems: 'center' }}>
+              <Grid item xs={12} sm={3}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={workingHours[day] !== null}
+                        onChange={(e) => handleTimeChange(day, 'isOpen', e.target.checked)}
+                      />
+                    }
+                    label={dayNames[day]}
+                  />
+                  <IconButton 
+                    size="small" 
+                    onClick={(e) => handleCopyClick(e, day)}
+                    disabled={workingHours[day] === null}
+                    title="Копировать расписание"
+                  >
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Grid>
+              
+              {workingHours[day] !== null ? (
+                <>
+                  <Grid item xs={6} sm={4}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel id={`start-time-label-${day}`}>Начало</InputLabel>
+                      <Select
+                        labelId={`start-time-label-${day}`}
+                        value={workingHours[day]?.start || '09:00'}
+                        label="Начало"
+                        onChange={(e) => handleTimeChange(day, 'start', e.target.value)}
+                      >
+                        {timeOptions.map(time => (
+                          <MenuItem 
+                            key={time} 
+                            value={time}
+                            disabled={time >= (workingHours[day]?.end || '18:00')}
+                          >
+                            {time}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={6} sm={4}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel id={`end-time-label-${day}`}>Конец</InputLabel>
+                      <Select
+                        labelId={`end-time-label-${day}`}
+                        value={workingHours[day]?.end || '18:00'}
+                        label="Конец"
+                        onChange={(e) => handleTimeChange(day, 'end', e.target.value)}
+                      >
+                        {timeOptions.map(time => (
+                          <MenuItem 
+                            key={time} 
+                            value={time}
+                            disabled={time <= (workingHours[day]?.start || '09:00')}
+                          >
+                            {time}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </>
+              ) : (
+                <Grid item xs={12} sm={8}>
+                  <Typography variant="body2" color="text.secondary">
+                    Выходной день
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+          ))}
+        </Paper>
+        
+        {/* Меню для копирования расписания */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleCopyClose}
+        >
+          <MenuItem disabled>
+            <Typography variant="caption">Копировать на:</Typography>
+          </MenuItem>
+          {daysOrder
+            .filter(day => day !== dayToCopyFrom)
+            .map(day => (
+              <MenuItem key={day} onClick={() => handleCopyTo(day)}>
+                {dayNames[day]}
+              </MenuItem>
+            ))
+          }
+        </Menu>
+      </Box>
+    );
+  };
+
   // Обработчик сохранения салона
   const handleSaveSalon = () => {
     if (validateForm()) {
@@ -547,8 +837,8 @@ const SalonManagement = () => {
           email: salonData.email || '',
           website: salonData.website || ''
         },
-        // Преобразуем строку рабочих часов в JSON объект
-        working_hours: parseWorkingHours(salonData.working_hours),
+        // Используем объект рабочих часов, а не строку
+        working_hours: salonData.working_hours,
         // Добавляем остальные поля, если они есть
         ...(salonData.status && { status: salonData.status }),
         ...(salonData.image_url && { image_url: salonData.image_url }),
@@ -563,91 +853,6 @@ const SalonManagement = () => {
         updateSalonMutation.mutate({ id: selectedSalonId, data: preparedData });
       }
     }
-  };
-
-  // Функция для преобразования строки рабочих часов в JSON объект
-  const parseWorkingHours = (hoursStr) => {
-    // Значение по умолчанию, если строка некорректна
-    const defaultWorkingHours = {
-      '1': { start: '09:00', end: '18:00' }, // Пн
-      '2': { start: '09:00', end: '18:00' }, // Вт
-      '3': { start: '09:00', end: '18:00' }, // Ср
-      '4': { start: '09:00', end: '18:00' }, // Чт
-      '5': { start: '09:00', end: '18:00' }, // Пт
-      '6': { start: '10:00', end: '16:00' }, // Сб
-      '0': null  // Вс - выходной
-    };
-
-    try {
-      // Если это уже объект, возвращаем его
-      if (typeof hoursStr === 'object') {
-        return hoursStr;
-      }
-
-      // Если это валидный JSON строкой, парсим его
-      if (hoursStr.startsWith('{') && hoursStr.endsWith('}')) {
-        try {
-          return JSON.parse(hoursStr);
-        } catch (e) {
-          console.error('Неверный формат JSON для рабочих часов:', e);
-        }
-      }
-
-      // Простой парсер для формата "Пн-Пт: 9:00-20:00, Сб-Вс: 10:00-18:00"
-      const daysMap = {
-        'Пн': '1', 'Вт': '2', 'Ср': '3', 'Чт': '4', 'Пт': '5', 'Сб': '6', 'Вс': '0'
-      };
-
-      const result = { ...defaultWorkingHours };
-      
-      // Разбиваем строку на части по запятой
-      const parts = hoursStr.split(',').map(part => part.trim());
-      
-      for (const part of parts) {
-        // Разбиваем каждую часть на дни и часы
-        const [daysStr, timeStr] = part.split(':').map(s => s.trim());
-        
-        if (!daysStr || !timeStr) continue;
-        
-        // Извлекаем время начала и конца
-        const timeMatch = timeStr.match(/(\d{1,2}:\d{2})-(\d{1,2}:\d{2})/);
-        if (!timeMatch) continue;
-        
-        const [_, startTime, endTime] = timeMatch;
-        
-        // Определяем, какие дни указаны (диапазон или отдельные)
-        if (daysStr.includes('-')) {
-          // Диапазон дней (например, Пн-Пт)
-          const [startDay, endDay] = daysStr.split('-').map(d => d.trim());
-          const startIndex = Object.keys(daysMap).findIndex(d => d === startDay);
-          const endIndex = Object.keys(daysMap).findIndex(d => d === endDay);
-          
-          if (startIndex !== -1 && endIndex !== -1) {
-            for (let i = startIndex; i <= endIndex; i++) {
-              const dayKey = daysMap[Object.keys(daysMap)[i]];
-              result[dayKey] = { start: formatTime(startTime), end: formatTime(endTime) };
-            }
-          }
-        } else {
-          // Отдельный день (например, Сб)
-          const dayKey = daysMap[daysStr];
-          if (dayKey) {
-            result[dayKey] = { start: formatTime(startTime), end: formatTime(endTime) };
-          }
-        }
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Ошибка при парсинге рабочих часов:', error);
-      return defaultWorkingHours;
-    }
-  };
-
-  // Вспомогательная функция для форматирования времени (добавление ведущих нулей)
-  const formatTime = (timeStr) => {
-    const [hours, minutes] = timeStr.split(':');
-    return `${hours.padStart(2, '0')}:${minutes}`;
   };
 
   // Обработчик удаления салона
@@ -696,7 +901,7 @@ const SalonManagement = () => {
     }
   ];
 
-  // Use real data from API without fallback to mock data
+  // Используем реальные данные из API или тестовые, если API не вернуло результат
   const displayFilteredSalons = searchQuery
     ? filteredSalons
     : salons || [];
@@ -915,17 +1120,11 @@ const SalonManagement = () => {
                 required
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                name="working_hours"
-                label="Часы работы"
-                value={salonData.working_hours}
-                onChange={handleInputChange}
-                error={!!validationErrors.working_hours}
-                helperText={validationErrors.working_hours}
-                fullWidth
-                required
-                placeholder="Пн-Пт: 9:00-20:00, Сб-Вс: 10:00-18:00"
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>Часы работы</Typography>
+              <TimeRangePicker 
+                value={salonData.working_hours} 
+                onChange={(hours) => setSalonData(prev => ({ ...prev, working_hours: hours }))} 
               />
             </Grid>
             <Grid item xs={12} sm={6}>

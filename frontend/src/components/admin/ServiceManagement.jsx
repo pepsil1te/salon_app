@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -33,7 +33,18 @@ import {
   Tooltip,
   FormControlLabel,
   Switch,
-  TablePagination
+  TablePagination,
+  useMediaQuery,
+  useTheme,
+  ListItem,
+  ListItemText,
+  List,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Fab,
+  SwipeableDrawer,
+  Badge
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { serviceApi } from '../../api/services';
@@ -48,9 +59,14 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CategoryIcon from '@mui/icons-material/Category';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import StoreIcon from '@mui/icons-material/Store';
+import CloseIcon from '@mui/icons-material/Close';
 
 const ServiceManagement = () => {
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [searchQuery, setSearchQuery] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState('add'); // 'add' or 'edit'
@@ -65,9 +81,9 @@ const ServiceManagement = () => {
     active_only: false,
     employee_id: ''
   });
-  const [openFiltersDialog, setOpenFiltersDialog] = useState(false);
+  const [openFiltersDrawer, setOpenFiltersDrawer] = useState(false);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(isMobile ? 5 : 10);
   const [serviceData, setServiceData] = useState({
     name: '',
     category: '',
@@ -82,6 +98,11 @@ const ServiceManagement = () => {
   const [categoryOptions, setCategoryOptions] = useState([
     'Волосы', 'Ногти', 'Макияж', 'Брови и ресницы', 'Массаж', 'Косметология', 'Другое'
   ]);
+
+  // На мобильных устройствах изменяем количество элементов на странице
+  useEffect(() => {
+    setRowsPerPage(isMobile ? 5 : 10);
+  }, [isMobile]);
 
   // Получение списка услуг
   const {
@@ -417,7 +438,7 @@ const ServiceManagement = () => {
         }));
         
         // Открываем диалог с фильтрами, чтобы пользователь видел примененный фильтр
-        setOpenFiltersDialog(true);
+        setOpenFiltersDrawer(true);
         
         // Показываем уведомление о примененном фильтре
         const salonName = salons?.find(salon => salon.id === Number(selectedSalonIdFromStorage))?.name || 'выбранному салону';
@@ -456,7 +477,7 @@ const ServiceManagement = () => {
         }));
         
         // Открываем диалог с фильтрами, чтобы пользователь видел примененный фильтр
-        setOpenFiltersDialog(true);
+        setOpenFiltersDrawer(true);
         
         // Показываем уведомление о примененном фильтре с именем сотрудника
         const employee = employees.find(emp => emp.id === Number(selectedEmployeeIdFromStorage));
@@ -677,22 +698,34 @@ const ServiceManagement = () => {
     );
   }
 
+  // Проверка активных фильтров для отображения баджа
+  const activeFiltersCount = Object.values(filters).filter(Boolean).length;
+
   return (
-    <Box sx={{ mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5">
+    <Box sx={{ mb: 4, position: 'relative' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 3,
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 2 : 0
+      }}>
+        <Typography variant="h5" sx={{ mb: isMobile ? 1 : 0 }}>
           Управление услугами
         </Typography>
-        <Button 
-          variant="contained" 
-          startIcon={<AddIcon />}
-          onClick={handleOpenAddDialog}
-        >
-          Добавить услугу
-        </Button>
+        {!isMobile && (
+          <Button 
+            variant="contained" 
+            startIcon={<AddIcon />}
+            onClick={handleOpenAddDialog}
+          >
+            Добавить услугу
+          </Button>
+        )}
       </Box>
 
-      {/* Поиск и фильтры */}
+      {/* Поиск */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={6}>
@@ -711,24 +744,23 @@ const ServiceManagement = () => {
             />
           </Grid>
           <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Box sx={{ display: 'flex', justifyContent: isMobile ? 'space-between' : 'flex-end' }}>
               <Button
                 variant="outlined"
                 startIcon={<FilterListIcon />}
-                onClick={() => setOpenFiltersDialog(true)}
+                onClick={() => setOpenFiltersDrawer(true)}
                 sx={{ mr: 1 }}
               >
                 Фильтры
-                {Object.values(filters).some(value => value) && (
-                  <Chip 
-                    label={Object.values(filters).filter(Boolean).length} 
-                    size="small" 
+                {activeFiltersCount > 0 && (
+                  <Badge 
+                    badgeContent={activeFiltersCount} 
                     color="primary" 
                     sx={{ ml: 1 }}
                   />
                 )}
               </Button>
-              {Object.values(filters).some(value => value) && (
+              {activeFiltersCount > 0 && (
                 <Button
                   variant="text"
                   onClick={handleResetFilters}
@@ -741,102 +773,232 @@ const ServiceManagement = () => {
         </Grid>
       </Paper>
 
-      {/* Таблица услуг */}
-      <Paper sx={{ mb: 3 }}>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Название</TableCell>
-                <TableCell>Категория</TableCell>
-                <TableCell>Салон</TableCell>
-                <TableCell align="right">Цена (₽)</TableCell>
-                <TableCell align="right">Длительность (мин)</TableCell>
-                <TableCell align="center">Статус</TableCell>
-                <TableCell align="center">Действия</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {paginatedServices.length > 0 ? (
-                paginatedServices.map((service) => (
-                  <TableRow key={service.id}>
-                    <TableCell>{service.name}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        icon={<CategoryIcon />}
-                        label={service.category} 
-                        size="small" 
-                      />
-                    </TableCell>
-                    <TableCell>{service.salon_name || getSalonNameById(service.salon_id)}</TableCell>
-                    <TableCell align="right">{service.price}</TableCell>
-                    <TableCell align="right">{service.duration}</TableCell>
-                    <TableCell align="center">
-                      <Chip 
-                        label={service.active ? 'Активна' : 'Неактивна'} 
-                        color={service.active ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <Tooltip title="Редактировать">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenEditDialog(service.id)}
-                            color="primary"
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Удалить">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDeleteDialog(service.id)}
-                            color="error"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
+      {/* Десктопное представление: Таблица услуг */}
+      {!isMobile && (
+        <Paper sx={{ mb: 3 }}>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Название</TableCell>
+                  <TableCell>Категория</TableCell>
+                  <TableCell>Салон</TableCell>
+                  <TableCell align="right">Цена (₽)</TableCell>
+                  <TableCell align="right">Длительность (мин)</TableCell>
+                  <TableCell align="center">Статус</TableCell>
+                  <TableCell align="center">Действия</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paginatedServices.length > 0 ? (
+                  paginatedServices.map((service) => (
+                    <TableRow key={service.id}>
+                      <TableCell>{service.name}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          icon={<CategoryIcon />}
+                          label={service.category} 
+                          size="small" 
+                        />
+                      </TableCell>
+                      <TableCell>{service.salon_name || getSalonNameById(service.salon_id)}</TableCell>
+                      <TableCell align="right">{service.price}</TableCell>
+                      <TableCell align="right">{service.duration}</TableCell>
+                      <TableCell align="center">
+                        <Chip 
+                          label={service.active ? 'Активна' : 'Неактивна'} 
+                          color={service.active ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                          <Tooltip title="Редактировать">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenEditDialog(service.id)}
+                              color="primary"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Удалить">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenDeleteDialog(service.id)}
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      {searchQuery || Object.values(filters).some(value => value)
+                        ? "Услуги по вашему запросу не найдены. Попробуйте изменить параметры поиска или фильтры."
+                        : "Список услуг пуст. Нажмите 'Добавить услугу', чтобы создать новую услугу."
+                      }
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} align="center">
-                    {searchQuery || Object.values(filters).some(value => value)
-                      ? "Услуги по вашему запросу не найдены. Попробуйте изменить параметры поиска или фильтры."
-                      : "Список услуг пуст. Нажмите 'Добавить услугу', чтобы создать новую услугу."
-                    }
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        
-        {/* Пагинация */}
-        {displayFilteredServices.length > 0 && (
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
-            component="div"
-            count={displayFilteredServices.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Строк на странице:"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
-          />
-        )}
-      </Paper>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          
+          {/* Пагинация для десктопа */}
+          {displayFilteredServices.length > 0 && (
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={displayFilteredServices.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Строк на странице:"
+              labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+            />
+          )}
+        </Paper>
+      )}
 
-      {/* Диалог фильтров */}
-      <Dialog open={openFiltersDialog} onClose={() => setOpenFiltersDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Фильтры</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+      {/* Мобильное представление: Карточки услуг */}
+      {isMobile && (
+        <Box sx={{ mb: 3 }}>
+          {paginatedServices.length > 0 ? (
+            paginatedServices.map((service) => (
+              <Card key={service.id} sx={{ mb: 2 }}>
+                <CardContent sx={{ pb: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="h6" component="div">
+                      {service.name}
+                    </Typography>
+                    <Chip 
+                      label={service.active ? 'Активна' : 'Неактивна'} 
+                      color={service.active ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </Box>
+                  
+                  <Divider sx={{ my: 1 }} />
+                  
+                  <Grid container spacing={1}>
+                    <Grid item xs={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <CategoryIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary">
+                          {service.category}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <AccessTimeIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary">
+                          {service.duration} мин
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <StoreIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary" noWrap>
+                          {service.salon_name || getSalonNameById(service.salon_id)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <AttachMoneyIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary">
+                          {service.price} ₽
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+                <CardActions>
+                  <Button 
+                    size="small" 
+                    startIcon={<EditIcon />} 
+                    onClick={() => handleOpenEditDialog(service.id)}
+                    fullWidth
+                  >
+                    Редактировать
+                  </Button>
+                  <Button 
+                    size="small" 
+                    startIcon={<DeleteIcon />} 
+                    color="error"
+                    onClick={() => handleOpenDeleteDialog(service.id)}
+                    fullWidth
+                  >
+                    Удалить
+                  </Button>
+                </CardActions>
+              </Card>
+            ))
+          ) : (
+            <Paper sx={{ p: 3, textAlign: 'center' }}>
+              {searchQuery || Object.values(filters).some(value => value)
+                ? "Услуги по вашему запросу не найдены. Попробуйте изменить параметры поиска или фильтры."
+                : "Список услуг пуст. Нажмите 'Добавить услугу', чтобы создать новую услугу."
+              }
+            </Paper>
+          )}
+          
+          {/* Пагинация для мобильных устройств */}
+          {displayFilteredServices.length > 0 && (
+            <Paper sx={{ mt: 2 }}>
+              <TablePagination
+                rowsPerPageOptions={[5, 10]}
+                component="div"
+                count={displayFilteredServices.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                labelRowsPerPage="На странице:"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+              />
+            </Paper>
+          )}
+        </Box>
+      )}
+
+      {/* Фильтры в виде выдвижной панели для мобильных */}
+      <SwipeableDrawer
+        anchor="bottom"
+        open={openFiltersDrawer}
+        onClose={() => setOpenFiltersDrawer(false)}
+        onOpen={() => setOpenFiltersDrawer(true)}
+        sx={{
+          '& .MuiDrawer-paper': {
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+            maxHeight: '80%'
+          }
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Фильтры</Typography>
+            <IconButton 
+              edge="end" 
+              onClick={() => setOpenFiltersDrawer(false)}
+              aria-label="закрыть фильтры"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          
+          <Divider sx={{ mb: 2 }} />
+          
+          <Grid container spacing={2}>
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel id="salon-filter-label">Салон</InputLabel>
@@ -857,7 +1019,6 @@ const ServiceManagement = () => {
               </FormControl>
             </Grid>
             
-            {/* Фильтр по сотруднику */}
             <Grid item xs={12}>
               <FormControl fullWidth>
                 <InputLabel id="employee-filter-label">Сотрудник</InputLabel>
@@ -902,7 +1063,7 @@ const ServiceManagement = () => {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 name="min_price"
                 label="Мин. цена"
@@ -916,7 +1077,7 @@ const ServiceManagement = () => {
               />
             </Grid>
             
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={6}>
               <TextField
                 name="max_price"
                 label="Макс. цена"
@@ -944,25 +1105,71 @@ const ServiceManagement = () => {
               />
             </Grid>
           </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleResetFilters}>Сбросить</Button>
-          <Button onClick={() => setOpenFiltersDialog(false)}>Закрыть</Button>
-        </DialogActions>
-      </Dialog>
+          
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+            <Button onClick={handleResetFilters} color="inherit">
+              Сбросить все
+            </Button>
+            <Button 
+              variant="contained" 
+              onClick={() => setOpenFiltersDrawer(false)}
+            >
+              Применить
+            </Button>
+          </Box>
+        </Box>
+      </SwipeableDrawer>
 
+      {/* Плавающая кнопка добавления для мобильных устройств */}
+      {isMobile && (
+        <Fab
+          color="primary"
+          aria-label="add"
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+          }}
+          onClick={handleOpenAddDialog}
+        >
+          <AddIcon />
+        </Fab>
+      )}
+
+      {/* Остальные диалоги и компоненты */}
+      
       {/* Диалог добавления/редактирования услуги */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog} 
+        maxWidth="md" 
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle>
           {dialogMode === 'add' ? 'Добавить новую услугу' : 'Редактировать услугу'}
+          {isMobile && (
+            <IconButton
+              aria-label="close"
+              onClick={handleCloseDialog}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                color: (theme) => theme.palette.grey[500],
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          )}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers={isMobile}>
           {(dialogMode === 'edit' && isLoadingServiceDetails) ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
               <CircularProgress />
             </Box>
           ) : (
-            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid container spacing={2} sx={{ mt: isMobile ? 0 : 0.5 }}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   name="name"
@@ -973,11 +1180,17 @@ const ServiceManagement = () => {
                   helperText={validationErrors.name}
                   fullWidth
                   required
+                  margin="normal"
                 />
               </Grid>
               
               <Grid item xs={12} sm={6}>
-                <FormControl fullWidth required error={!!validationErrors.category}>
+                <FormControl 
+                  fullWidth 
+                  required 
+                  error={!!validationErrors.category}
+                  margin="normal"
+                >
                   <InputLabel id="category-label">Категория</InputLabel>
                   <Select
                     labelId="category-label"
@@ -1011,6 +1224,7 @@ const ServiceManagement = () => {
                   helperText={validationErrors.price}
                   fullWidth
                   required
+                  margin="normal"
                   InputProps={{
                     endAdornment: <InputAdornment position="end">₽</InputAdornment>,
                     inputProps: { min: 0 }
@@ -1029,6 +1243,7 @@ const ServiceManagement = () => {
                   helperText={validationErrors.duration}
                   fullWidth
                   required
+                  margin="normal"
                   InputProps={{
                     endAdornment: <InputAdornment position="end">мин</InputAdornment>,
                     inputProps: { min: 0 }
@@ -1037,7 +1252,12 @@ const ServiceManagement = () => {
               </Grid>
               
               <Grid item xs={12}>
-                <FormControl fullWidth required error={!!validationErrors.salon_id}>
+                <FormControl 
+                  fullWidth 
+                  required 
+                  error={!!validationErrors.salon_id}
+                  margin="normal"
+                >
                   <InputLabel id="salon-label">Салон</InputLabel>
                   <Select
                     labelId="salon-label"
@@ -1071,6 +1291,7 @@ const ServiceManagement = () => {
                   value={serviceData.image_url}
                   onChange={handleInputChange}
                   fullWidth
+                  margin="normal"
                   placeholder="https://example.com/service.jpg"
                 />
               </Grid>
@@ -1084,6 +1305,7 @@ const ServiceManagement = () => {
                   fullWidth
                   multiline
                   rows={3}
+                  margin="normal"
                 />
               </Grid>
               
@@ -1103,8 +1325,8 @@ const ServiceManagement = () => {
             </Grid>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Отмена</Button>
+        <DialogActions sx={{ px: isMobile ? 3 : 2, py: isMobile ? 2 : 1 }}>
+          <Button onClick={handleCloseDialog} color="inherit">Отмена</Button>
           <Button 
             variant="contained" 
             onClick={handleSaveService}
@@ -1123,7 +1345,12 @@ const ServiceManagement = () => {
       </Dialog>
 
       {/* Диалог подтверждения удаления */}
-      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+      <Dialog 
+        open={openDeleteDialog} 
+        onClose={handleCloseDeleteDialog}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Подтверждение удаления</DialogTitle>
         <DialogContent>
           <Typography>
@@ -1131,7 +1358,7 @@ const ServiceManagement = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>Отмена</Button>
+          <Button onClick={handleCloseDeleteDialog} color="inherit">Отмена</Button>
           <Button 
             color="error" 
             onClick={handleDeleteService}
@@ -1144,14 +1371,18 @@ const ServiceManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Snackbar для уведомлений */}
+      
+      {/* Snackbar уведомления */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        message={snackbar.message}
-      />
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

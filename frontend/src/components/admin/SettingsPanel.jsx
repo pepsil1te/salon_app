@@ -31,7 +31,22 @@ import {
   MenuItem,
   Chip,
   CircularProgress,
-  Backdrop
+  Backdrop,
+  useTheme,
+  useMediaQuery,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Avatar,
+  ListItemAvatar,
+  Badge,
+  SpeedDial,
+  SpeedDialAction,
+  SpeedDialIcon,
+  BottomNavigation,
+  BottomNavigationAction,
+  Drawer,
+  Fab
 } from '@mui/material';
 import { 
   Save as SaveIcon,
@@ -44,7 +59,11 @@ import {
   DeleteForever as DeleteIcon,
   Edit as EditIcon,
   Add as AddIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  ExpandMore as ExpandMoreIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
+  PersonAdd as PersonAddIcon
 } from '@mui/icons-material';
 import settingsApi from '../../api/settings';
 import { useThemeLanguage } from '../../contexts/ThemeLanguageContext';
@@ -119,6 +138,11 @@ const SettingsPanel = () => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Для адаптивного дизайна
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   // Получаем функции управления темой и языком из контекста
   const { theme: currentTheme, language: currentLanguage, setTheme, setLanguage } = useThemeLanguage();
@@ -500,28 +524,143 @@ const SettingsPanel = () => {
     }
   };
 
+  // Названия вкладок и связанные с ними иконки
+  const tabOptions = [
+    { label: "Общие", icon: <PersonIcon /> },
+    { label: "Внешний вид", icon: <ColorLensIcon /> },
+    { label: "Уведомления", icon: <NotificationsIcon /> },
+    { label: "Безопасность", icon: <SecurityIcon /> },
+    { label: "Резервное копирование", icon: <BackupIcon /> },
+    { label: "Пользователи", icon: <PersonIcon /> }
+  ];
+
+  // Обработчик выбора вкладки из выпадающего списка
+  const handleMobileTabChange = (event) => {
+    setTabValue(Number(event.target.value));
+    setMobileMenuOpen(false);
+  };
+
+  // Переключение мобильного меню
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
   return (
     <Box sx={{ mb: 4 }}>
-      <Typography variant="h5" sx={{ mb: 3 }}>
+      <Typography variant={isMobile ? "h6" : "h5"} sx={{ mb: 3 }}>
         Настройки
       </Typography>
       
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          aria-label="settings tabs"
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab icon={<PersonIcon />} label="Общие" />
-          <Tab icon={<ColorLensIcon />} label="Внешний вид" />
-          <Tab icon={<NotificationsIcon />} label="Уведомления" />
-          <Tab icon={<SecurityIcon />} label="Безопасность" />
-          <Tab icon={<BackupIcon />} label="Резервное копирование" />
-          <Tab icon={<PersonIcon />} label="Пользователи" />
-        </Tabs>
-      </Box>
+      {/* Десктопная версия вкладок */}
+      {!isMobile && (
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="settings tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {tabOptions.map((tab, index) => (
+              <Tab key={index} icon={tab.icon} label={tab.label} />
+            ))}
+          </Tabs>
+        </Box>
+      )}
+      
+      {/* Мобильная версия с выпадающим списком вместо вкладок */}
+      {isMobile && (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Button 
+              variant="outlined" 
+              onClick={toggleMobileMenu}
+              startIcon={<MenuIcon />}
+              fullWidth
+              sx={{ 
+                justifyContent: 'flex-start', 
+                p: 1.5,
+                mb: 2,
+                borderRadius: 2
+              }}
+            >
+              {tabOptions[tabValue].label}
+            </Button>
+          </Box>
+          
+          <Drawer
+            anchor="bottom"
+            open={mobileMenuOpen}
+            onClose={toggleMobileMenu}
+            PaperProps={{
+              sx: {
+                maxHeight: '70%',
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                pb: 2
+              }
+            }}
+          >
+            <Box sx={{ p: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">Выберите раздел</Typography>
+                <IconButton onClick={toggleMobileMenu}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+              <Divider sx={{ mb: 2 }} />
+              <List>
+                {tabOptions.map((tab, index) => (
+                  <ListItem 
+                    key={index} 
+                    button 
+                    onClick={() => {
+                      setTabValue(index);
+                      setMobileMenuOpen(false);
+                    }}
+                    selected={tabValue === index}
+                    sx={{ 
+                      mb: 1, 
+                      borderRadius: 2,
+                      bgcolor: tabValue === index ? 'action.selected' : 'inherit'
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar sx={{ bgcolor: tabValue === index ? 'primary.main' : 'action.disabledBackground' }}>
+                        {tab.icon}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText primary={tab.label} />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          </Drawer>
+          
+          {/* BottomNavigation для быстрого доступа к основным разделам */}
+          <BottomNavigation
+            value={tabValue}
+            onChange={(event, newValue) => {
+              setTabValue(newValue);
+            }}
+            showLabels
+            sx={{ 
+              position: 'fixed', 
+              bottom: 0, 
+              left: 0, 
+              right: 0, 
+              zIndex: 1100,
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              display: { xs: 'flex', sm: 'none' }
+            }}
+          >
+            {tabOptions.slice(0, 5).map((tab, index) => (
+              <BottomNavigationAction key={index} label={tab.label} icon={tab.icon} />
+            ))}
+          </BottomNavigation>
+        </>
+      )}
       
       {/* Загрузочный экран */}
       <Backdrop
@@ -536,20 +675,28 @@ const SettingsPanel = () => {
         <Card>
           <CardHeader 
             title="Общие настройки" 
+            titleTypographyProps={{ variant: isMobile ? 'subtitle1' : 'h6' }}
             action={
               <Button
                 variant="text"
                 startIcon={<RefreshIcon />}
                 onClick={fetchSettings}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
-                Обновить
+                {isMobile ? "" : "Обновить"}
               </Button>
             }
+            sx={{ 
+              p: isMobile ? 2 : 3,
+              '& .MuiCardHeader-action': {
+                m: isMobile ? 0 : 'auto',
+              }
+            }}
           />
           <Divider />
-          <CardContent>
-            <Grid container spacing={3}>
+          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+            <Grid container spacing={isMobile ? 2 : 3}>
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -558,6 +705,7 @@ const SettingsPanel = () => {
                   onChange={(e) => handleTextChange('general', 'companyName', e.target.value)}
                   margin="normal"
                   disabled={loading}
+                  size={isMobile ? "small" : "medium"}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -568,10 +716,11 @@ const SettingsPanel = () => {
                   onChange={(e) => handleTextChange('general', 'adminEmail', e.target.value)}
                   margin="normal"
                   disabled={loading}
+                  size={isMobile ? "small" : "medium"}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal" disabled={loading}>
+                <FormControl fullWidth margin="normal" disabled={loading} size={isMobile ? "small" : "medium"}>
                   <InputLabel>Язык по умолчанию</InputLabel>
                   <Select
                     value={settings.general.defaultLanguage}
@@ -584,7 +733,7 @@ const SettingsPanel = () => {
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal" disabled={loading}>
+                <FormControl fullWidth margin="normal" disabled={loading} size={isMobile ? "small" : "medium"}>
                   <InputLabel>Формат даты</InputLabel>
                   <Select
                     value={settings.general.dateFormat}
@@ -598,7 +747,7 @@ const SettingsPanel = () => {
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal" disabled={loading}>
+                <FormControl fullWidth margin="normal" disabled={loading} size={isMobile ? "small" : "medium"}>
                   <InputLabel>Формат времени</InputLabel>
                   <Select
                     value={settings.general.timeFormat}
@@ -612,12 +761,22 @@ const SettingsPanel = () => {
               </Grid>
             </Grid>
             
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Box sx={{ 
+              mt: isMobile ? 2 : 3, 
+              display: 'flex', 
+              justifyContent: 'flex-end',
+              flexDirection: isMobile ? 'column' : 'row',
+              '& .MuiButton-root': {
+                width: isMobile ? '100%' : 'auto',
+                mt: isMobile ? 1 : 0,
+              }
+            }}>
               <Button
                 variant="contained"
                 startIcon={<SaveIcon />}
                 onClick={() => handleSaveSettings('general')}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
                 {loading ? <CircularProgress size={24} /> : 'Сохранить'}
               </Button>
@@ -631,22 +790,30 @@ const SettingsPanel = () => {
         <Card>
           <CardHeader 
             title="Настройки внешнего вида" 
+            titleTypographyProps={{ variant: isMobile ? 'subtitle1' : 'h6' }}
             action={
               <Button
                 variant="text"
                 startIcon={<RefreshIcon />}
                 onClick={fetchSettings}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
-                Обновить
+                {isMobile ? "" : "Обновить"}
               </Button>
             }
+            sx={{ 
+              p: isMobile ? 2 : 3,
+              '& .MuiCardHeader-action': {
+                m: isMobile ? 0 : 'auto',
+              }
+            }}
           />
           <Divider />
-          <CardContent>
-            <Grid container spacing={3}>
+          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+            <Grid container spacing={isMobile ? 2 : 3}>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal" disabled={loading}>
+                <FormControl fullWidth margin="normal" disabled={loading} size={isMobile ? "small" : "medium"}>
                   <InputLabel>Тема оформления</InputLabel>
                   <Select
                     value={settings.appearance.theme}
@@ -669,6 +836,7 @@ const SettingsPanel = () => {
                   margin="normal"
                   InputLabelProps={{ shrink: true }}
                   disabled={loading}
+                  size={isMobile ? "small" : "medium"}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -681,6 +849,7 @@ const SettingsPanel = () => {
                   margin="normal"
                   InputLabelProps={{ shrink: true }}
                   disabled={loading}
+                  size={isMobile ? "small" : "medium"}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -690,6 +859,7 @@ const SettingsPanel = () => {
                       checked={settings.appearance.showLogo}
                       onChange={handleSwitchChange('appearance', 'showLogo')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="Показывать логотип"
@@ -697,12 +867,22 @@ const SettingsPanel = () => {
               </Grid>
             </Grid>
             
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Box sx={{ 
+              mt: isMobile ? 2 : 3, 
+              display: 'flex', 
+              justifyContent: 'flex-end',
+              flexDirection: isMobile ? 'column' : 'row',
+              '& .MuiButton-root': {
+                width: isMobile ? '100%' : 'auto',
+                mt: isMobile ? 1 : 0,
+              }
+            }}>
               <Button
                 variant="contained"
                 startIcon={<SaveIcon />}
                 onClick={() => handleSaveSettings('appearance')}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
                 {loading ? <CircularProgress size={24} /> : 'Сохранить'}
               </Button>
@@ -716,20 +896,28 @@ const SettingsPanel = () => {
         <Card>
           <CardHeader 
             title="Настройки уведомлений" 
+            titleTypographyProps={{ variant: isMobile ? 'subtitle1' : 'h6' }}
             action={
               <Button
                 variant="text"
                 startIcon={<RefreshIcon />}
                 onClick={fetchSettings}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
-                Обновить
+                {isMobile ? "" : "Обновить"}
               </Button>
             }
+            sx={{ 
+              p: isMobile ? 2 : 3,
+              '& .MuiCardHeader-action': {
+                m: isMobile ? 0 : 'auto',
+              }
+            }}
           />
           <Divider />
-          <CardContent>
-            <Grid container spacing={3}>
+          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+            <Grid container spacing={isMobile ? 2 : 3}>
               <Grid item xs={12}>
                 <FormControlLabel
                   control={
@@ -737,6 +925,7 @@ const SettingsPanel = () => {
                       checked={settings.notification.emailNotifications}
                       onChange={handleSwitchChange('notification', 'emailNotifications')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="Email-уведомления"
@@ -749,6 +938,7 @@ const SettingsPanel = () => {
                       checked={settings.notification.smsNotifications}
                       onChange={handleSwitchChange('notification', 'smsNotifications')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="SMS-уведомления"
@@ -761,6 +951,7 @@ const SettingsPanel = () => {
                       checked={settings.notification.appointmentReminders}
                       onChange={handleSwitchChange('notification', 'appointmentReminders')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="Напоминания о записях"
@@ -773,13 +964,14 @@ const SettingsPanel = () => {
                       checked={settings.notification.marketingEmails}
                       onChange={handleSwitchChange('notification', 'marketingEmails')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="Маркетинговые рассылки"
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal" disabled={loading}>
+                <FormControl fullWidth margin="normal" disabled={loading} size={isMobile ? "small" : "medium"}>
                   <InputLabel>Время напоминания о записи</InputLabel>
                   <Select
                     value={settings.notification.reminderTime}
@@ -796,12 +988,22 @@ const SettingsPanel = () => {
               </Grid>
             </Grid>
             
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Box sx={{ 
+              mt: isMobile ? 2 : 3, 
+              display: 'flex', 
+              justifyContent: 'flex-end',
+              flexDirection: isMobile ? 'column' : 'row',
+              '& .MuiButton-root': {
+                width: isMobile ? '100%' : 'auto',
+                mt: isMobile ? 1 : 0,
+              }
+            }}>
               <Button
                 variant="contained"
                 startIcon={<SaveIcon />}
                 onClick={() => handleSaveSettings('notification')}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
                 {loading ? <CircularProgress size={24} /> : 'Сохранить'}
               </Button>
@@ -815,20 +1017,28 @@ const SettingsPanel = () => {
         <Card>
           <CardHeader 
             title="Настройки безопасности" 
+            titleTypographyProps={{ variant: isMobile ? 'subtitle1' : 'h6' }}
             action={
               <Button
                 variant="text"
                 startIcon={<RefreshIcon />}
                 onClick={fetchSettings}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
-                Обновить
+                {isMobile ? "" : "Обновить"}
               </Button>
             }
+            sx={{ 
+              p: isMobile ? 2 : 3,
+              '& .MuiCardHeader-action': {
+                m: isMobile ? 0 : 'auto',
+              }
+            }}
           />
           <Divider />
-          <CardContent>
-            <Grid container spacing={3}>
+          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+            <Grid container spacing={isMobile ? 2 : 3}>
               <Grid item xs={12}>
                 <FormControlLabel
                   control={
@@ -836,6 +1046,7 @@ const SettingsPanel = () => {
                       checked={settings.security.twoFactorAuth}
                       onChange={handleSwitchChange('security', 'twoFactorAuth')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="Двухфакторная аутентификация"
@@ -851,6 +1062,7 @@ const SettingsPanel = () => {
                   margin="normal"
                   InputProps={{ inputProps: { min: 0 } }}
                   disabled={loading}
+                  size={isMobile ? "small" : "medium"}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -863,6 +1075,7 @@ const SettingsPanel = () => {
                   margin="normal"
                   InputProps={{ inputProps: { min: 1 } }}
                   disabled={loading}
+                  size={isMobile ? "small" : "medium"}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -872,6 +1085,7 @@ const SettingsPanel = () => {
                       checked={settings.security.allowRegistration}
                       onChange={handleSwitchChange('security', 'allowRegistration')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="Разрешить регистрацию новых пользователей"
@@ -879,12 +1093,22 @@ const SettingsPanel = () => {
               </Grid>
             </Grid>
             
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <Box sx={{ 
+              mt: isMobile ? 2 : 3, 
+              display: 'flex', 
+              justifyContent: 'flex-end',
+              flexDirection: isMobile ? 'column' : 'row',
+              '& .MuiButton-root': {
+                width: isMobile ? '100%' : 'auto',
+                mt: isMobile ? 1 : 0,
+              }
+            }}>
               <Button
                 variant="contained"
                 startIcon={<SaveIcon />}
                 onClick={() => handleSaveSettings('security')}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
                 {loading ? <CircularProgress size={24} /> : 'Сохранить'}
               </Button>
@@ -898,20 +1122,28 @@ const SettingsPanel = () => {
         <Card>
           <CardHeader 
             title="Настройки резервного копирования" 
+            titleTypographyProps={{ variant: isMobile ? 'subtitle1' : 'h6' }}
             action={
               <Button
                 variant="text"
                 startIcon={<RefreshIcon />}
                 onClick={fetchSettings}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
-                Обновить
+                {isMobile ? "" : "Обновить"}
               </Button>
             }
+            sx={{ 
+              p: isMobile ? 2 : 3,
+              '& .MuiCardHeader-action': {
+                m: isMobile ? 0 : 'auto',
+              }
+            }}
           />
           <Divider />
-          <CardContent>
-            <Grid container spacing={3}>
+          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+            <Grid container spacing={isMobile ? 2 : 3}>
               <Grid item xs={12}>
                 <FormControlLabel
                   control={
@@ -919,13 +1151,14 @@ const SettingsPanel = () => {
                       checked={settings.backup.autoBackup}
                       onChange={handleSwitchChange('backup', 'autoBackup')}
                       disabled={loading}
+                      size={isMobile ? "small" : "medium"}
                     />
                   }
                   label="Автоматическое резервное копирование"
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal" disabled={loading || !settings.backup.autoBackup}>
+                <FormControl fullWidth margin="normal" disabled={loading || !settings.backup.autoBackup} size={isMobile ? "small" : "medium"}>
                   <InputLabel>Частота резервного копирования</InputLabel>
                   <Select
                     value={settings.backup.backupFrequency}
@@ -949,6 +1182,7 @@ const SettingsPanel = () => {
                   margin="normal"
                   InputProps={{ inputProps: { min: 1 } }}
                   disabled={loading || !settings.backup.autoBackup}
+                  size={isMobile ? "small" : "medium"}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -958,12 +1192,22 @@ const SettingsPanel = () => {
               </Grid>
             </Grid>
             
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
+            <Box sx={{ 
+              mt: isMobile ? 2 : 3, 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              flexDirection: isMobile ? 'column' : 'row',
+              '& .MuiButton-root': {
+                width: isMobile ? '100%' : 'auto',
+                mt: isMobile ? 1 : 0,
+              }
+            }}>
               <Button
                 variant="outlined"
                 onClick={handleCreateBackup}
                 disabled={loadingBackup}
                 startIcon={loadingBackup ? <CircularProgress size={20} /> : <BackupIcon />}
+                size={isMobile ? "small" : "medium"}
               >
                 {loadingBackup ? 'Создание резервной копии...' : 'Создать резервную копию'}
               </Button>
@@ -972,6 +1216,7 @@ const SettingsPanel = () => {
                 startIcon={<SaveIcon />}
                 onClick={() => handleSaveSettings('backup')}
                 disabled={loading}
+                size={isMobile ? "small" : "medium"}
               >
                 {loading ? <CircularProgress size={24} /> : 'Сохранить настройки'}
               </Button>
@@ -985,30 +1230,73 @@ const SettingsPanel = () => {
         <Card>
           <CardHeader 
             title="Управление пользователями" 
+            titleTypographyProps={{ variant: isMobile ? 'subtitle1' : 'h6' }}
             action={
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  variant="text"
-                  startIcon={<RefreshIcon />}
-                  onClick={fetchUsers}
-                  disabled={loading}
-                >
-                  Обновить
-                </Button>
-              </Box>
+              <Button
+                variant="text"
+                startIcon={<RefreshIcon />}
+                onClick={fetchUsers}
+                disabled={loading}
+                size={isMobile ? "small" : "medium"}
+              >
+                {isMobile ? "" : "Обновить"}
+              </Button>
             }
+            sx={{ 
+              p: isMobile ? 2 : 3,
+              '& .MuiCardHeader-action': {
+                m: isMobile ? 0 : 'auto',
+              }
+            }}
           />
           <Divider />
-          <CardContent>
+          <CardContent sx={{ p: isMobile ? 2 : 3, pb: isMobile ? 8 : 3 }}>
             {users.length > 0 ? (
-              <List>
-                {users.map((user) => (
-                  <React.Fragment key={`${user.user_type}-${user.id}`}>
-                    <ListItem>
-                      <ListItemText
-                        primary={
-                          <Box display="flex" alignItems="center">
-                            {user.name}
+              isMobile ? (
+                // Мобильная версия списка пользователей с аккордеонами
+                <Box>
+                  {users.map((user) => (
+                    <Accordion 
+                      key={`accordion-${user.user_type}-${user.id}`}
+                      sx={{ mb: 1, '&:before': { display: 'none' } }}
+                    >
+                      <AccordionSummary
+                        expandIcon={<ExpandMoreIcon />}
+                        sx={{ px: 2, py: 1 }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                          <Avatar 
+                            sx={{ 
+                              bgcolor: user.user_type === 'employee' ? 'primary.main' : 'secondary.main',
+                              width: 32,
+                              height: 32,
+                              mr: 1.5
+                            }}
+                          >
+                            {user.name.charAt(0).toUpperCase()}
+                          </Avatar>
+                          <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                            <Typography variant="subtitle2" noWrap>
+                              {user.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {user.email}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={user.status === 'active' ? 'Активен' : 'Неактивен'}
+                            color={getUserStatusColor(user.status)}
+                            size="small"
+                            sx={{ ml: 1 }}
+                          />
+                        </Box>
+                      </AccordionSummary>
+                      <AccordionDetails sx={{ px: 2, py: 1, bgcolor: 'background.default' }}>
+                        <Box>
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Тип:
+                            </Typography>
                             <Chip 
                               label={user.user_type === 'employee' ? 'Сотрудник' : 'Клиент'} 
                               size="small" 
@@ -1016,51 +1304,115 @@ const SettingsPanel = () => {
                               sx={{ ml: 1 }}
                             />
                           </Box>
-                        }
-                        secondary={
-                          <React.Fragment>
-                            <Typography component="span" variant="body2" color="text.primary">
-                              {user.email}
-                            </Typography>
-                            {user.user_type === 'employee' && (
-                              <Typography component="span" variant="body2" sx={{ ml: 2 }}>
+                          
+                          {user.user_type === 'employee' && (
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Роль:
+                              </Typography>
+                              <Typography variant="body2" sx={{ ml: 1, display: 'inline' }}>
                                 {getUserRoleText(user.role)}
                               </Typography>
-                            )}
-                          </React.Fragment>
-                        }
-                      />
-                      <Chip
-                        label={user.status === 'active' ? 'Активен' : 'Неактивен'}
-                        color={getUserStatusColor(user.status)}
-                        size="small"
-                        sx={{ mr: 2 }}
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton 
-                          edge="end" 
-                          aria-label="edit" 
-                          onClick={() => handleOpenEditUserDialog(user)}
-                          disabled={loading}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton 
-                          edge="end" 
-                          aria-label="delete" 
-                          onClick={() => handleOpenDeleteDialog(user)}
-                          color="error"
-                          sx={{ ml: 1 }}
-                          disabled={loading}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-              </List>
+                            </Box>
+                          )}
+                          
+                          <Box sx={{ display: 'flex', mt: 2 }}>
+                            <Button
+                              variant="outlined"
+                              startIcon={<EditIcon />}
+                              onClick={() => handleOpenEditUserDialog(user)}
+                              disabled={loading}
+                              fullWidth
+                              size="small"
+                              sx={{ mr: 1 }}
+                            >
+                              Изменить
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              startIcon={<DeleteIcon />}
+                              onClick={() => handleOpenDeleteDialog(user)}
+                              color="error"
+                              disabled={loading}
+                              fullWidth
+                              size="small"
+                            >
+                              Удалить
+                            </Button>
+                          </Box>
+                        </Box>
+                      </AccordionDetails>
+                    </Accordion>
+                  ))}
+                </Box>
+              ) : (
+                // Десктопная версия списка пользователей
+                <List>
+                  {users.map((user) => (
+                    <React.Fragment key={`${user.user_type}-${user.id}`}>
+                      <ListItem>
+                        <ListItemAvatar>
+                          <Avatar sx={{ bgcolor: user.user_type === 'employee' ? 'primary.main' : 'secondary.main' }}>
+                            {user.name.charAt(0).toUpperCase()}
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Box display="flex" alignItems="center">
+                              {user.name}
+                              <Chip 
+                                label={user.user_type === 'employee' ? 'Сотрудник' : 'Клиент'} 
+                                size="small" 
+                                color={user.user_type === 'employee' ? 'primary' : 'secondary'}
+                                sx={{ ml: 1 }}
+                              />
+                            </Box>
+                          }
+                          secondary={
+                            <React.Fragment>
+                              <Typography component="span" variant="body2" color="text.primary">
+                                {user.email}
+                              </Typography>
+                              {user.user_type === 'employee' && (
+                                <Typography component="span" variant="body2" sx={{ ml: 2 }}>
+                                  {getUserRoleText(user.role)}
+                                </Typography>
+                              )}
+                            </React.Fragment>
+                          }
+                        />
+                        <Chip
+                          label={user.status === 'active' ? 'Активен' : 'Неактивен'}
+                          color={getUserStatusColor(user.status)}
+                          size="small"
+                          sx={{ mr: 2 }}
+                        />
+                        <ListItemSecondaryAction>
+                          <IconButton 
+                            edge="end" 
+                            aria-label="edit" 
+                            onClick={() => handleOpenEditUserDialog(user)}
+                            disabled={loading}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton 
+                            edge="end" 
+                            aria-label="delete" 
+                            onClick={() => handleOpenDeleteDialog(user)}
+                            color="error"
+                            sx={{ ml: 1 }}
+                            disabled={loading}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                      <Divider />
+                    </React.Fragment>
+                  ))}
+                </List>
+              )
             ) : (
               <Typography variant="body1" sx={{ py: 2, textAlign: 'center' }}>
                 {loading ? 'Загрузка пользователей...' : 'Пользователи не найдены'}
@@ -1068,10 +1420,28 @@ const SettingsPanel = () => {
             )}
           </CardContent>
         </Card>
+        
+        {/* Плавающая кнопка для добавления пользователя на мобильных устройствах */}
+        {isMobile && (
+          <Fab 
+            color="primary" 
+            aria-label="add user" 
+            sx={{ position: 'fixed', bottom: 80, right: 16 }}
+            onClick={handleOpenAddUserDialog}
+          >
+            <PersonAddIcon />
+          </Fab>
+        )}
       </TabPanel>
       
       {/* Диалог редактирования пользователя */}
-      <Dialog open={openUserDialog} onClose={handleCloseUserDialog} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={openUserDialog} 
+        onClose={handleCloseUserDialog} 
+        maxWidth="sm" 
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle>
           Редактировать пользователя
         </DialogTitle>
@@ -1083,6 +1453,7 @@ const SettingsPanel = () => {
               value={selectedUser?.name || ''}
               margin="normal"
               disabled={true}
+              size={isMobile ? "small" : "medium"}
             />
             <TextField
               fullWidth
@@ -1090,10 +1461,11 @@ const SettingsPanel = () => {
               value={selectedUser?.email || ''}
               margin="normal"
               disabled={true}
+              size={isMobile ? "small" : "medium"}
             />
             
             {selectedUser?.user_type === 'employee' && (
-              <FormControl fullWidth margin="normal">
+              <FormControl fullWidth margin="normal" size={isMobile ? "small" : "medium"}>
                 <InputLabel>Роль</InputLabel>
                 <Select
                   value={selectedUser?.role || ''}
@@ -1108,7 +1480,7 @@ const SettingsPanel = () => {
               </FormControl>
             )}
             
-            <FormControl fullWidth margin="normal">
+            <FormControl fullWidth margin="normal" size={isMobile ? "small" : "medium"}>
               <InputLabel>Статус</InputLabel>
               <Select
                 value={selectedUser?.status || ''}
@@ -1122,8 +1494,15 @@ const SettingsPanel = () => {
             </FormControl>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseUserDialog} disabled={loading}>
+        <DialogActions sx={{ 
+          flexDirection: isMobile ? 'column' : 'row',
+          p: isMobile ? 2 : 'inherit',
+          '& .MuiButton-root': {
+            width: isMobile ? '100%' : 'auto',
+            m: isMobile ? 0.5 : 0,
+          }
+        }}>
+          <Button onClick={handleCloseUserDialog} disabled={loading} variant={isMobile ? "outlined" : "text"}>
             Отмена
           </Button>
           <Button 
@@ -1142,6 +1521,7 @@ const SettingsPanel = () => {
         onClose={handleCloseDeleteDialog}
         aria-labelledby="alert-dialog-title"
         aria-describedby="alert-dialog-description"
+        fullScreen={isMobile}
       >
         <DialogTitle id="alert-dialog-title">
           Подтвердите удаление пользователя
@@ -1158,8 +1538,15 @@ const SettingsPanel = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>Отмена</Button>
+        <DialogActions sx={{ 
+          flexDirection: isMobile ? 'column' : 'row',
+          p: isMobile ? 2 : 'inherit',
+          '& .MuiButton-root': {
+            width: isMobile ? '100%' : 'auto',
+            m: isMobile ? 0.5 : 0,
+          }
+        }}>
+          <Button onClick={handleCloseDeleteDialog} variant={isMobile ? "outlined" : "text"}>Отмена</Button>
           <Button 
             onClick={handleDeleteUser} 
             color="error" 
@@ -1177,6 +1564,11 @@ const SettingsPanel = () => {
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
+        anchorOrigin={isMobile ? { vertical: 'bottom', horizontal: 'center' } : { vertical: 'bottom', horizontal: 'left' }}
+        sx={{
+          width: isMobile ? '100%' : 'auto',
+          bottom: isMobile ? 56 : 24, // Учитываем высоту BottomNavigation
+        }}
       >
         <Alert 
           onClose={handleCloseSnackbar} 

@@ -1,42 +1,70 @@
 import { ApiClient } from './ApiClient';
 
-// API-клиент для работы с салонами
-class SalonApiClient extends ApiClient {
+/**
+ * API-клиент для работы с салонами
+ */
+class SalonsApi extends ApiClient {
   constructor() {
     super('/salons', 'салон');
   }
 
   /**
-   * Получение статистики салона
-   * @param {number} id ID салона
-   * @param {string} startDate Дата начала (YYYY-MM-DD)
-   * @param {string} endDate Дата окончания (YYYY-MM-DD)
-   * @returns {Promise<Object>} Объект со статистикой
+   * Создание нового салона
+   * @param {Object} data Данные салона
+   * @returns {Promise<Object>} Созданный салон
    */
-  async getStatistics(id, startDate, endDate) {
+  async create(data) {
+    console.log('Создание салона с данными:', JSON.stringify(data, null, 2));
+    return super.create(data);
+  }
+
+  /**
+   * Обновление салона
+   * @param {number} id ID салона
+   * @param {Object} data Данные для обновления
+   * @returns {Promise<Object>} Обновленный салон
+   */
+  async update(id, data) {
+    console.log('Обновление салона #' + id + ' с данными:', JSON.stringify(data, null, 2));
+    return super.update(id, data);
+  }
+
+  /**
+   * Удаление салона
+   * @param {number} id ID салона
+   * @returns {Promise<Object>} Ответ сервера
+   */
+  async remove(id) {
+    console.log('Удаление салона #' + id);
+    return super.remove(id);
+  }
+
+  /**
+   * Получение статистики по салону
+   * @param {number} id ID салона
+   * @param {Object} params Параметры запроса
+   * @returns {Promise<Object>} Статистика салона
+   */
+  async getStatistics(id, params = {}) {
     try {
-      console.log(`🔍 Запрос статистики для салона #${id} (${startDate} - ${endDate})`);
-      
-      const response = await this.api.get(`${this.basePath}/${id}/statistics`, {
-        params: { startDate, endDate },
-      });
-      
-      console.log(`✅ Получена статистика для салона #${id}:`, response.data);
+      console.log(`Запрос статистики салона #${id} с параметрами:`, params);
+      const response = await this.api.get(`${this.endpoint}/${id}/statistics`, { params });
+      console.log(`Получена статистика салона #${id}:`, response.data);
       return response.data;
     } catch (error) {
-      console.error(`❌ Ошибка при получении статистики для салона #${id}:`, error);
-      console.error('Детали ошибки:', error.response?.data || error.message);
+      console.error(`Ошибка получения статистики салона #${id}:`, error);
       throw error;
     }
   }
 
   /**
-   * Принудительное обновление данных салонов
-   * @returns {Promise<Array>} Массив обновленных объектов салонов
+   * Получение списка салонов с загруженными расписаниями
+   * @returns {Promise<Array>} Список салонов с расписаниями
    */
-  async forceRefresh() {
+  async getAllWithSchedules() {
     return this.getAll({}, true);
   }
 }
 
-export const salonApi = new SalonApiClient(); 
+// Экспортируем экземпляр API для салонов как именованный экспорт
+export const salonApi = new SalonsApi(); 

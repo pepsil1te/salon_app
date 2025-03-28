@@ -717,25 +717,122 @@ router.put('/:id',
   ]),
   async (req, res) => {
   try {
-    const { name, role, contact_info, working_hours, is_active, service_ids } = req.body;
+    // Извлекаем все поля из запроса
+    const { 
+      name, first_name, last_name, role, position, contact_info, 
+      working_hours, is_active, service_ids, salon_id, photo_url 
+    } = req.body;
+
+    logger.info('Получен запрос на обновление сотрудника:', { 
+      id: req.params.id,
+      name, first_name, last_name, 
+      role, position, 
+      contact_info: JSON.stringify(contact_info),
+      working_hours_keys: working_hours ? Object.keys(working_hours) : null,
+      is_active, 
+      service_ids_length: service_ids ? service_ids.length : 0,
+      salon_id
+    });
+
+    // Убедимся, что у нас есть имя для обновления
+    // Если передано как name, используем его, иначе составляем из first_name и last_name
+    const employeeName = name || (first_name && last_name ? `${first_name} ${last_name}` : null);
+    
+    // Проверяем, что имя не пустое
+    if (!employeeName) {
+      return res.status(400).json({ 
+        message: 'Name is required for employee update', 
+        details: 'Provide either "name" field or both "first_name" and "last_name" fields'
+      });
+    }
+    
+    // Проверяем наличие контактной информации
+    const employeeContactInfo = contact_info || {};
+    
+    // Получаем роль из поля role или принимаем 'employee' по умолчанию
+    const employeeRole = role || 'employee';  // Разрешаем только роли из enum
+    
+    // Должность (позиция) сотрудника как отдельное поле
+    const employeePosition = position || '';
+    
+    // Запрашиваем текущие данные сотрудника для сохранения неизменяемых полей
+    const { rows: currentEmployeeData } = await db.query(
+      'SELECT * FROM employees WHERE id = $1',
+      [req.params.id]
+    );
+    
+    if (currentEmployeeData.length === 0) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+    
+    // Для отладки - логируем текущие рабочие часы до обновления
+    logger.debug('Текущие рабочие часы сотрудника:', currentEmployeeData[0].working_hours);
+    
+    // Логируем информацию о запросе
+    logger.info(`Updating employee #${req.params.id} with name: ${employeeName}, role: ${employeeRole}, position: ${employeePosition}`);
+    logger.debug('Contact info:', employeeContactInfo);
 
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
-      // Update employee
+      // Включаем position как отдельное поле при обновлении
+      const updateQuery = `
+        UPDATE employees
+        SET name = $1, 
+            role = $2, 
+            position = $3,
+            contact_info = $4, 
+            working_hours = $5, 
+            is_active = $6,
+            ${photo_url ? 'photo_url = $8,' : ''}
+            updated_at = NOW()
+        WHERE id = $7
+        RETURNING *
+      `;
+      
+      const queryParams = [
+        employeeName, 
+        employeeRole, 
+        employeePosition,
+        employeeContactInfo, 
+        working_hours || currentEmployeeData[0].working_hours, 
+        is_active !== undefined ? is_active : currentEmployeeData[0].is_active, 
+        req.params.id
+      ];
+      
+      if (photo_url) {
+        queryParams.push(photo_url);
+      }
+      
+      // Update employee with refined data
       const { rows: [employee] } = await client.query(
-        `UPDATE employees
-         SET name = $1, role = $2, contact_info = $3, 
-             working_hours = $4, is_active = $5
-         WHERE id = $6
-         RETURNING *`,
-        [name, role, contact_info, working_hours, is_active, req.params.id]
+        photo_url 
+          ? updateQuery 
+          : `UPDATE employees
+             SET name = $1, 
+                 role = $2, 
+                 position = $3,
+                 contact_info = $4, 
+                 working_hours = $5, 
+                 is_active = $6,
+                 updated_at = NOW()
+             WHERE id = $7
+             RETURNING *`,
+        queryParams
       );
 
       if (!employee) {
         await client.query('ROLLBACK');
         return res.status(404).json({ message: 'Employee not found' });
+      }
+
+      // Обновление связи с салоном, если предоставлено
+      if (salon_id) {
+        await client.query(
+          `UPDATE employees SET salon_id = $1 WHERE id = $2`,
+          [salon_id, req.params.id]
+        );
       }
 
       // Update service associations
@@ -750,16 +847,26 @@ router.put('/:id',
       }
 
       await client.query('COMMIT');
+      logger.info(`Employee #${req.params.id} updated successfully`);
+      
+      // Для отладки - логируем обновленные рабочие часы после обновления
+      logger.debug('Обновленные рабочие часы сотрудника:', employee.working_hours);
+      
       res.json(employee);
     } catch (error) {
       await client.query('ROLLBACK');
+      logger.error('Database error during employee update:', error);
       throw error;
     } finally {
       client.release();
     }
   } catch (error) {
     logger.error('Update employee error:', error);
-    res.status(500).json({ message: 'Error updating employee' });
+    res.status(500).json({ 
+      message: 'Error updating employee', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
