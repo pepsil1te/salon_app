@@ -93,9 +93,10 @@ const SalonManagement = () => {
   // Добавляем эффект для принудительного перерендеринга при изменении данных
   useEffect(() => {
     // Эффект для обновления UI при изменении данных салонов
-    if (salons) {
-      console.log('Данные салонов обновлены:', salons);
-    }
+    // Отключаем вывод в консоль
+    // if (salons) {
+    //   console.log('Данные салонов обновлены:', salons);
+    // }
   }, [salons]);
 
   // Форматирование рабочих часов для отображения в карточке
@@ -235,8 +236,6 @@ const SalonManagement = () => {
     ({ id, data }) => salonApi.update(id, data),
     {
       onSuccess: async (updatedSalon) => {
-        console.log('Салон успешно обновлен:', updatedSalon);
-        
         // Закрываем диалог
         handleCloseDialog();
         

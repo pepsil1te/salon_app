@@ -11,7 +11,7 @@ const api = axios.create({
 });
 
 // Включаем подробную отладку в консоли
-const DEBUG = true;
+const DEBUG = false;
 
 // Добавляем интерсептор для аутентификации
 api.interceptors.request.use(

@@ -24,12 +24,12 @@ export class ApiClient {
    */
   async getAll(params = {}, noCache = false) {
     try {
-      console.log(`🔍 Запрос списка ${this.resourceName}ов`);
+      // console.log(`🔍 Запрос списка ${this.resourceName}ов`);
       
       const queryParams = noCache ? { ...params, ...api.noCacheParams() } : params;
       const response = await api.get(this.basePath, { params: queryParams });
       
-      console.log(`✅ Получены данные ${this.resourceName}ов:`, response.data.length, 'записей');
+      // console.log(`✅ Получены данные ${this.resourceName}ов:`, response.data.length, 'записей');
       return response.data;
     } catch (error) {
       console.error(`❌ Ошибка при получении списка ${this.resourceName}ов:`, error);
@@ -45,14 +45,57 @@ export class ApiClient {
    */
   async getById(id, params = {}) {
     try {
-      console.log(`🔍 Запрос ${this.resourceName}а #${id}`);
+      // console.log(`🔍 Запрос ${this.resourceName}а #${id}`);
       
       const response = await api.get(`${this.basePath}/${id}`, { params });
       
-      console.log(`✅ Получены данные ${this.resourceName}а #${id}`);
+      // console.log(`✅ Получены данные ${this.resourceName}а #${id}`);
       return response.data;
     } catch (error) {
       console.error(`❌ Ошибка при получении ${this.resourceName}а #${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Выполнение GET-запроса по указанному пути
+   * @param {string} path - Относительный путь (добавляется к basePath)
+   * @param {Object} params - Параметры запроса
+   * @returns {Promise<any>} Результат запроса
+   */
+  async get(path = '', params = {}) {
+    try {
+      const fullPath = path ? `${this.basePath}${path}` : this.basePath;
+      // console.log(`🔍 GET-запрос к ${fullPath}`);
+      
+      const response = await api.get(fullPath, { params });
+      
+      // console.log(`✅ Получены данные от ${fullPath}`);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Ошибка при GET-запросе к ${this.basePath}${path}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Выполнение PUT-запроса по указанному пути
+   * @param {string} path - Относительный путь (добавляется к basePath)
+   * @param {Object} data - Данные для отправки
+   * @returns {Promise<any>} Результат запроса
+   */
+  async put(path = '', data = {}) {
+    try {
+      const fullPath = path ? `${this.basePath}${path}` : this.basePath;
+      // console.log(`📝 PUT-запрос к ${fullPath}:`, data);
+      
+      const response = await api.put(fullPath, data);
+      
+      // console.log(`✅ Данные успешно обновлены через ${fullPath}:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ Ошибка при PUT-запросе к ${this.basePath}${path}:`, error);
+      console.error('Детали ошибки:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -64,11 +107,11 @@ export class ApiClient {
    */
   async create(data) {
     try {
-      console.log(`📝 Создание нового ${this.resourceName}а:`, data);
+      // console.log(`📝 Создание нового ${this.resourceName}а:`, data);
       
       const response = await api.post(this.basePath, data);
       
-      console.log(`✅ ${this.resourceName} успешно создан:`, response.data);
+      // console.log(`✅ ${this.resourceName} успешно создан:`, response.data);
       return response.data;
     } catch (error) {
       console.error(`❌ Ошибка при создании ${this.resourceName}а:`, error);
@@ -85,11 +128,11 @@ export class ApiClient {
    */
   async update(id, data) {
     try {
-      console.log(`📝 Обновление ${this.resourceName}а #${id}:`, data);
+      // console.log(`📝 Обновление ${this.resourceName}а #${id}:`, data);
       
       const response = await api.put(`${this.basePath}/${id}`, data);
       
-      console.log(`✅ ${this.resourceName} #${id} успешно обновлен:`, response.data);
+      // console.log(`✅ ${this.resourceName} #${id} успешно обновлен:`, response.data);
       return response.data;
     } catch (error) {
       console.error(`❌ Ошибка при обновлении ${this.resourceName}а #${id}:`, error);
@@ -105,11 +148,11 @@ export class ApiClient {
    */
   async delete(id) {
     try {
-      console.log(`🗑️ Удаление ${this.resourceName}а #${id}`);
+      // console.log(`🗑️ Удаление ${this.resourceName}а #${id}`);
       
       const response = await api.delete(`${this.basePath}/${id}`);
       
-      console.log(`✅ ${this.resourceName} #${id} успешно удален`);
+      // console.log(`✅ ${this.resourceName} #${id} успешно удален`);
       return response.data;
     } catch (error) {
       console.error(`❌ Ошибка при удалении ${this.resourceName}а #${id}:`, error);

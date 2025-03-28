@@ -664,12 +664,12 @@ const ReportsAndStatistics = () => {
       );
     }
 
-    // Безопасно получаем массив услуг с проверкой на существование и структуру данных
+    // Безопасно извлекаем данные об услугах
     const services = isAdmin 
-      ? (statsData?.services || [])
-      : (statsData?.popular_services || []);
-
-    console.log('Services to display:', services);
+      ? (Array.isArray(serviceStatsData) ? serviceStatsData : [])
+      : (salonStatsData?.top_services || []);
+      
+    // console.log('Services to display:', services);
 
     return (
       <Card sx={{ mb: 4 }}>
@@ -722,19 +722,20 @@ const ReportsAndStatistics = () => {
 
     // Debug logging
     React.useEffect(() => {
-      if (statsData) {
-        console.log('TopEmployeesTable - statsData:', statsData);
-        
-        if (isAdmin) {
-          // Now employeeStatsData is already the array of employees
-          console.log('Admin employee stats array:', Array.isArray(statsData), statsData);
-        } else {
-          console.log('Employee top_employees data structure:', {
-            salon_stats: statsData.salon_stats,
-            top_employees: statsData.top_employees
-          });
-        }
-      }
+      // Отключаем вывод отладочных сообщений в консоль
+      // if (statsData) {
+      //   console.log('TopEmployeesTable - statsData:', statsData);
+      //   
+      //   if (isAdmin) {
+      //     // Now employeeStatsData is already the array of employees
+      //     console.log('Admin employee stats array:', Array.isArray(statsData), statsData);
+      //   } else {
+      //     console.log('Employee top_employees data structure:', {
+      //       salon_stats: statsData.salon_stats,
+      //       top_employees: statsData.top_employees
+      //     });
+      //   }
+      // }
     }, [statsData, isAdmin]);
 
     if (isLoading) {
@@ -787,7 +788,7 @@ const ReportsAndStatistics = () => {
       ? (Array.isArray(statsData) ? statsData : [])
       : (statsData?.top_employees || []);
 
-    console.log('Employees to display:', employees);
+    // console.log('Employees to display:', employees);
 
     return (
       <Card sx={{ mb: 4 }}>

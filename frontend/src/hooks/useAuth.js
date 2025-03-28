@@ -99,15 +99,15 @@ export const useAuth = () => {
   useEffect(() => {
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      // Log auth state for debugging
-      console.log('Auth state initialized:', { 
-        hasMockData,
-        hasToken: !!localStorage.getItem('token'), 
-        isLoginPage, 
-        isAdminPage, 
-        isEmployeePage, 
-        isClientPage
-      });
+      // Log auth state for debugging - отключено
+      // console.log('Auth state initialized:', { 
+      //   hasMockData,
+      //   hasToken: !!localStorage.getItem('token'), 
+      //   isLoginPage, 
+      //   isAdminPage, 
+      //   isEmployeePage, 
+      //   isClientPage
+      // });
     }
   }, [hasMockData, isLoginPage, isAdminPage, isEmployeePage, isClientPage]);
 

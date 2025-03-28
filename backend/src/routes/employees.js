@@ -459,20 +459,59 @@ router.get('/:id/performance', cache(CACHE_TTL.SHORT, (req) => {
     );
     
     // Get average rating
-    const { rows: ratingStats } = await db.query(
-      `SELECT 
-        COALESCE(AVG(rating), 0) as average_rating,
-        COUNT(*) as rating_count,
-        COUNT(CASE WHEN rating = 5 THEN 1 END) as rating_5,
-        COUNT(CASE WHEN rating = 4 THEN 1 END) as rating_4,
-        COUNT(CASE WHEN rating = 3 THEN 1 END) as rating_3,
-        COUNT(CASE WHEN rating = 2 THEN 1 END) as rating_2,
-        COUNT(CASE WHEN rating = 1 THEN 1 END) as rating_1
-       FROM reviews
-       WHERE employee_id = $1
-       AND created_at BETWEEN $2 AND $3`,
-      [employeeId, startDateTime, endDateTime]
-    );
+    let ratingStats;
+    try {
+      // Проверяем существование таблицы reviews
+      const { rows: tableExists } = await db.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'reviews'
+        );
+      `);
+      
+      if (tableExists[0].exists) {
+        // Таблица существует, выполняем запрос
+        const { rows } = await db.query(
+          `SELECT 
+            COALESCE(AVG(rating), 0) as average_rating,
+            COUNT(*) as rating_count,
+            COUNT(CASE WHEN rating = 5 THEN 1 END) as rating_5,
+            COUNT(CASE WHEN rating = 4 THEN 1 END) as rating_4,
+            COUNT(CASE WHEN rating = 3 THEN 1 END) as rating_3,
+            COUNT(CASE WHEN rating = 2 THEN 1 END) as rating_2,
+            COUNT(CASE WHEN rating = 1 THEN 1 END) as rating_1
+           FROM reviews
+           WHERE employee_id = $1
+           AND created_at BETWEEN $2 AND $3`,
+          [employeeId, startDateTime, endDateTime]
+        );
+        ratingStats = rows;
+      } else {
+        // Таблица не существует, используем значения по умолчанию
+        logger.warn('Table "reviews" does not exist. Using default values.');
+        ratingStats = [{
+          average_rating: 0,
+          rating_count: 0,
+          rating_5: 0,
+          rating_4: 0,
+          rating_3: 0,
+          rating_2: 0,
+          rating_1: 0
+        }];
+      }
+    } catch (error) {
+      logger.error('Error while checking reviews table or getting ratings:', error);
+      // Используем значения по умолчанию в случае ошибки
+      ratingStats = [{
+        average_rating: 0,
+        rating_count: 0,
+        rating_5: 0,
+        rating_4: 0,
+        rating_3: 0,
+        rating_2: 0,
+        rating_1: 0
+      }];
+    }
     
     // Get service breakdown
     const { rows: serviceStats } = await db.query(

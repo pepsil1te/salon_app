@@ -14,6 +14,7 @@ const serviceRoutes = require('./routes/services');
 const employeeRoutes = require('./routes/employees');
 const appointmentRoutes = require('./routes/appointments');
 const statisticsRoutes = require('./routes/statistics');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/statistics', statisticsRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Middleware для логирования ошибок должен быть перед обработчиком ошибок
 app.use(errorLogger());
