@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Создаем базовый API-клиент
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: '/api', // This should use the proxy defined in vite.config.js
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,7 +11,7 @@ const api = axios.create({
 });
 
 // Включаем подробную отладку в консоли
-const DEBUG = false;
+const DEBUG = false; // Enable debug for troubleshooting
 
 // Добавляем интерсептор для аутентификации
 api.interceptors.request.use(
@@ -28,6 +28,17 @@ api.interceptors.request.use(
       if (config.url.includes('/schedule') && config.method === 'put') {
         console.log('📅 Запрос на обновление расписания:', config.data);
       }
+      
+      // Previous fix for service-categories - no longer needed
+      /* 
+      if (config.url.includes('/service-categories')) {
+        console.log('🏷️ Service categories request detected, ensuring proper URL', config);
+        // If we're in development, ensure we're using the correct backend URL
+        if (import.meta.env.DEV) {
+          config.baseURL = 'http://localhost:3001/api';
+        }
+      }
+      */
     }
     
     // Добавляем токен в заголовки для авторизации
@@ -89,6 +100,7 @@ api.interceptors.response.use(
     
     // Обработка 401 Unauthorized - перенаправление на страницу входа
     if (error.response?.status === 401) {
+      // Очищаем все данные авторизации
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       

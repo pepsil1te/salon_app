@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -35,7 +35,8 @@ import {
   ListItem,
   ListItemText,
   Chip,
-  AlertTitle
+  AlertTitle,
+  alpha
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -53,7 +54,8 @@ import {
   ExpandMore as ExpandMoreIcon,
   Info as InfoIcon,
   HelpOutline as HelpOutlineIcon,
-  TimelineOutlined as TimelineIcon
+  TimelineOutlined as TimelineIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PieChartIcon from '@mui/icons-material/PieChart';
@@ -80,10 +82,13 @@ function TabPanel(props) {
   );
 }
 
-const ReportsAndStatistics = () => {
+const ReportsAndStatistics = ({ salonId, reportType: initialReportType }) => {
   const { user } = useAuthContext();
-  const [reportType, setReportType] = useState('revenue');
-  const [selectedSalon, setSelectedSalon] = useState(user?.role === 'admin' ? 'all' : (user?.salon_id?.toString() || ''));
+  const [reportType, setReportType] = useState(initialReportType || 'revenue');
+  const [selectedSalon, setSelectedSalon] = useState(
+    salonId ? salonId.toString() : 
+    user?.role === 'admin' ? 'all' : (user?.salon_id?.toString() || '')
+  );
   const [dateRange, setDateRange] = useState({
     startDate: startOfMonth(new Date()),
     endDate: endOfMonth(new Date())
@@ -96,6 +101,16 @@ const ReportsAndStatistics = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+
+  // Градиенты и стили для UI компонентов
+  const primaryGradient = 'linear-gradient(90deg, #6a11cb 0%, #2575fc 100%)';
+  const secondaryGradient = 'linear-gradient(90deg, #FF8E53 0%, #FE6B8B 100%)';
+  const infoGradient = 'linear-gradient(90deg, #2193b0 0%, #6dd5ed 100%)';
+  const successGradient = 'linear-gradient(90deg, #00b09b 0%, #96c93d 100%)';
+  
+  const cardBoxShadow = '0 8px 24px rgba(149, 157, 165, 0.2)';
+  const buttonShadow = '0 4px 10px rgba(0, 0, 0, 0.15)';
+  const hoverTransform = 'translateY(-3px)';
 
   // Убедимся, что даты всегда валидны
   const validStartDate = dateRange.startDate instanceof Date && !isNaN(dateRange.startDate) 
@@ -238,6 +253,30 @@ const ReportsAndStatistics = () => {
       refetchOnWindowFocus: false
     }
   );
+
+  // Effect to update state when props change
+  useEffect(() => {
+    console.log('ReportsAndStatistics props:', { salonId, initialReportType });
+    
+    // Update salon selection if salonId prop changes
+    if (salonId) {
+      console.log('Setting selected salon from props:', salonId);
+      setSelectedSalon(salonId.toString());
+    }
+    
+    // Update report type if initialReportType prop changes
+    if (initialReportType) {
+      console.log('Setting report type from props:', initialReportType);
+      setReportType(initialReportType);
+      
+      // Also set the appropriate tab based on report type
+      if (initialReportType === 'revenue') {
+        setTabValue(0); // Financial tab
+      } else if (initialReportType === 'appointments') {
+        setTabValue(2); // Services tab or appointments tab
+      }
+    }
+  }, [salonId, initialReportType]);
 
   const handleReportTypeChange = (event) => {
     setReportType(event.target.value);
@@ -405,80 +444,277 @@ const ReportsAndStatistics = () => {
 
   // Функция для печати только содержимого отчета
   const handlePrint = () => {
-    // Проверяем, что мы находимся на вкладке Финансы
-    if (tabValue !== 3) {
-      console.error('Печать доступна только на вкладке "Финансы"');
-      alert('Пожалуйста, перейдите на вкладку "Финансы" для печати отчета');
-      return;
-    }
-    
-    // Проверяем доступность данных для печати
-    if (!filteredReportData || filteredReportData.length === 0 || !printRef || !printRef.current) {
-      console.error('Отсутствуют данные для печати или не найден DOM-элемент');
-      alert('Невозможно распечатать отчет. Убедитесь, что в выбранном периоде есть данные.');
-      return;
-    }
-    
-    const printContents = printRef.current.innerHTML;
-    const originalContents = document.body.innerHTML;
-    
-    // Создаем стили для печати
-    const printStyles = `
-      <style>
-        @media print {
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-          h1 { font-size: 18px; margin-bottom: 10px; }
-          h2 { font-size: 16px; margin-top: 20px; margin-bottom: 10px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f2f2f2; font-weight: bold; }
-          tr:last-child td { font-weight: bold; }
-          .print-header { padding-bottom: 15px; border-bottom: 1px solid #ddd; margin-bottom: 15px; }
-          .print-footer { margin-top: 20px; font-size: 12px; color: #666; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }
-          .no-print { display: none !important; }
-        }
-      </style>
-    `;
-    
     // Формируем заголовок отчета
     const reportTitle = reportType === 'revenue' ? 'Финансовый отчет' : 'Отчет по записям';
     const salonTitle = selectedSalon === 'all' 
       ? 'Все салоны' 
       : `Салон: ${displaySalons.find(s => s.id.toString() === selectedSalon)?.name || ''}`;
     const dateRange = `Период: ${format(validStartDate, 'dd.MM.yyyy')} - ${format(validEndDate, 'dd.MM.yyyy')}`;
+    const currentDate = format(new Date(), 'dd.MM.yyyy HH:mm');
     
-    // Создаем содержимое для печати с улучшенной разметкой
+    // Создаем расширенные стили для печати
+    const printStyles = `
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        
+        @page {
+          size: A4;
+          margin: 1.5cm;
+        }
+        
+        body {
+          font-family: 'Roboto', Arial, sans-serif;
+          margin: 0;
+          padding: 0;
+          color: #333;
+          background-color: white;
+          line-height: 1.5;
+          font-size: 11pt;
+        }
+        
+        .container {
+          max-width: 100%;
+        }
+        
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 15px;
+          border-bottom: 2px solid #6a11cb;
+        }
+        
+        .header h1 {
+          font-size: 22pt;
+          font-weight: 700;
+          margin: 0 0 10px 0;
+          color: #6a11cb;
+        }
+        
+        .header .info {
+          font-size: 11pt;
+          color: #555;
+        }
+        
+        .summary-box {
+          background-color: #f8f9fc;
+          border-radius: 8px;
+          padding: 15px 20px;
+          margin-bottom: 25px;
+          border-left: 4px solid #6a11cb;
+        }
+        
+        .summary-title {
+          font-size: 14pt;
+          font-weight: 500;
+          margin: 0 0 10px 0;
+          color: #333;
+        }
+        
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+        
+        .summary-label {
+          font-weight: 500;
+          color: #555;
+        }
+        
+        .summary-value {
+          font-weight: 700;
+        }
+        
+        .success-text {
+          color: #0caa41;
+        }
+        
+        .error-text {
+          color: #e53935;
+        }
+        
+        .highlight-text {
+          color: #6a11cb;
+          font-size: 14pt;
+        }
+        
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 25px 0;
+          font-size: 10pt;
+        }
+        
+        thead {
+          background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+          color: white;
+        }
+        
+        th {
+          padding: 12px 15px;
+          font-weight: 700;
+          text-align: left;
+          border: none;
+        }
+        
+        td {
+          padding: 10px 15px;
+          border-bottom: 1px solid #ddd;
+        }
+        
+        tr:nth-child(even) {
+          background-color: #f8f9fc;
+        }
+        
+        tr:hover {
+          background-color: #f1f1fe;
+        }
+        
+        .total-row {
+          background-color: #f0f4ff !important;
+          font-weight: 700;
+        }
+        
+        .total-row td {
+          border-top: 2px solid #6a11cb;
+          border-bottom: none;
+          padding-top: 15px;
+        }
+        
+        .number-cell {
+          text-align: right;
+        }
+        
+        .footer {
+          margin-top: 30px;
+          padding-top: 15px;
+          border-top: 1px solid #ddd;
+          font-size: 9pt;
+          color: #777;
+          text-align: center;
+          page-break-inside: avoid;
+        }
+        
+        .company-info {
+          font-weight: 500;
+          margin-bottom: 5px;
+        }
+        
+        .print-date {
+          font-style: italic;
+        }
+        
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      </style>
+    `;
+    
+    // Рассчитываем итоги для отображения
+    const totalCompleted = filteredReportData.reduce((acc, row) => acc + (row.completed_count || 0), 0);
+    const totalCancelled = filteredReportData.reduce((acc, row) => acc + (row.cancelled_count || 0), 0);
+    const completionRate = Math.round((totalCompleted / (totals.appointments_count || 1)) * 100);
+    const cancellationRate = Math.round((totalCancelled / (totals.appointments_count || 1)) * 100);
+    
+    // Составляем HTML таблицу с данными
+    let tableHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Дата</th>
+            ${selectedSalon === 'all' ? '<th>Салон</th>' : ''}
+            <th class="number-cell">Записей</th>
+            <th class="number-cell">Завершено</th>
+            <th class="number-cell">Отменено</th>
+            <th class="number-cell">Выручка</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    
+    filteredReportData.forEach((row) => {
+      tableHTML += `
+        <tr>
+          <td>${format(new Date(row.date), 'dd.MM.yyyy')}</td>
+          ${selectedSalon === 'all' ? `<td>${row.salon_name || 'Без названия'}</td>` : ''}
+          <td class="number-cell">${row.appointments_count || 0}</td>
+          <td class="number-cell success-text">${row.completed_count || 0}</td>
+          <td class="number-cell error-text">${row.cancelled_count || 0}</td>
+          <td class="number-cell">${(row.revenue || 0).toLocaleString('ru-RU')} ₽</td>
+        </tr>
+      `;
+    });
+    
+    // Добавляем итоговую строку
+    tableHTML += `
+        <tr class="total-row">
+          <td>${selectedSalon === 'all' ? 'Итого по всем салонам' : 'Итого'}</td>
+          ${selectedSalon === 'all' ? '<td></td>' : ''}
+          <td class="number-cell">${totals.appointments_count || 0}</td>
+          <td class="number-cell success-text">${totalCompleted}</td>
+          <td class="number-cell error-text">${totalCancelled}</td>
+          <td class="number-cell highlight-text">${(totals.revenue || 0).toLocaleString('ru-RU')} ₽</td>
+        </tr>
+      </tbody>
+    </table>
+    `;
+    
+    // Создаем содержимое для печати
     const printContent = `
       <html>
       <head>
         <title>${reportTitle}</title>
+        <meta charset="UTF-8">
         ${printStyles}
       </head>
       <body>
-        <div class="print-header">
+        <div class="container">
+          <div class="header">
           <h1>${reportTitle}</h1>
-          <p><strong>${salonTitle}</strong></p>
-          <p>${dateRange}</p>
+            <div class="info">${salonTitle}</div>
+            <div class="info">${dateRange}</div>
         </div>
-        <div class="print-content">
-          ${printContents}
+          
+          <div class="summary-box">
+            <div class="summary-title">Сводная информация</div>
+            <div class="summary-row">
+              <div class="summary-label">Всего записей:</div>
+              <div class="summary-value">${totals.appointments_count || 0}</div>
         </div>
-        <div class="print-footer">
-          <p>Отчет сформирован: ${format(new Date(), 'dd.MM.yyyy HH:mm')}</p>
-          <p>© Система управления салоном красоты</p>
+            <div class="summary-row">
+              <div class="summary-label">Завершено записей:</div>
+              <div class="summary-value success-text">${totalCompleted} (${completionRate}%)</div>
+            </div>
+            <div class="summary-row">
+              <div class="summary-label">Отменено записей:</div>
+              <div class="summary-value error-text">${totalCancelled} (${cancellationRate}%)</div>
+            </div>
+            <div class="summary-row">
+              <div class="summary-label">Общая выручка:</div>
+              <div class="summary-value highlight-text">${(totals.revenue || 0).toLocaleString('ru-RU')} ₽</div>
+            </div>
+          </div>
+          
+          ${tableHTML}
+          
+          <div class="footer">
+            <div class="company-info">BEAUTY SALON MANAGER</div>
+            <div class="print-date">Отчет сформирован: ${currentDate}</div>
+          </div>
         </div>
       </body>
       </html>
     `;
     
-    try {
-      // Создаем новое окно для печати вместо замены текущего документа
+    // Создаем новое окно для печати
       const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        alert('Пожалуйста, разрешите всплывающие окна для этого сайта, чтобы распечатать отчет.');
-        return;
-      }
-      
       printWindow.document.open();
       printWindow.document.write(printContent);
       printWindow.document.close();
@@ -486,20 +722,18 @@ const ReportsAndStatistics = () => {
       // Запускаем печать после полной загрузки содержимого
       printWindow.onload = function() {
         printWindow.focus();
+      setTimeout(() => {
         printWindow.print();
         // Закрываем окно после печати (или через 2 секунды, если пользователь отменил печать)
-        setTimeout(function() {
+        setTimeout(() => {
           try {
             printWindow.close();
           } catch (e) {
             console.error('Ошибка при закрытии окна печати:', e);
           }
         }, 2000);
+      }, 500);
       };
-    } catch (error) {
-      console.error('Ошибка при печати:', error);
-      alert('Произошла ошибка при подготовке документа к печати. Пожалуйста, попробуйте еще раз.');
-    }
   };
 
   // Функция для помощи - открывает подсказки
@@ -507,134 +741,133 @@ const ReportsAndStatistics = () => {
     setHelpOpen(!helpOpen);
   };
 
-  // Карточки с ключевыми показателями
+  // KeyMetricsCards с улучшенным дизайном
   const KeyMetricsCards = () => {
-    // Для админа показываем общую статистику, для сотрудника - статистику по его салону
-    const statsData = isAdmin ? dashboardData : salonStatsData;
-    const isLoading = isAdmin ? isLoadingDashboard : isLoadingSalonStats;
-    const error = isAdmin ? dashboardError : salonStatsError;
+    const isLoading = isLoadingDashboard || isLoadingFinancialStats || isLoadingSalonStats;
+    const error = dashboardError || financialStatsError || salonStatsError;
+    
+    const data = selectedSalon === 'all' 
+      ? dashboardData 
+      : salonStatsData;
+    
+    const financialData = financialStatsData || {};
 
     if (isLoading) {
       return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', my: 4, flexDirection: 'column', gap: 2 }}>
-          <CircularProgress />
-          <Typography variant="body2" color="text.secondary">
-            Загрузка показателей...
-          </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress sx={{ color: theme.palette.primary.main }} />
         </Box>
       );
     }
 
     if (error) {
       return (
-        <Alert severity="error" sx={{ mb: 4 }}>
-          <AlertTitle>Ошибка при загрузке данных</AlertTitle>
-          {error.message}
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <AlertTitle>Ошибка загрузки данных</AlertTitle>
+          Не удалось загрузить метрики. Попробуйте позже.
         </Alert>
       );
     }
 
-    if (!statsData) {
+    const metrics = [
+      {
+        title: 'Общая выручка',
+        value: financialData.totalRevenue || 0,
+        format: (val) => `${val.toLocaleString('ru-RU')} ₽`,
+        icon: <AttachMoneyIcon />,
+        gradient: primaryGradient,
+        change: financialData.revenueChange || 0
+      },
+      {
+        title: 'Количество записей',
+        value: data?.totalAppointments || 0,
+        format: (val) => val.toLocaleString('ru-RU'),
+        icon: <EventIcon />,
+        gradient: secondaryGradient,
+        change: data?.appointmentsChange || 0
+      },
+      {
+        title: 'Средний чек',
+        value: financialData.averageOrderValue || 0,
+        format: (val) => `${val.toLocaleString('ru-RU')} ₽`,
+        icon: <PieChartIcon />,
+        gradient: infoGradient,
+        change: financialData.aovChange || 0
+      },
+      {
+        title: 'Загруженность',
+        value: data?.occupancyRate || 0,
+        format: (val) => `${val}%`,
+        icon: <TimelineIcon />,
+        gradient: successGradient,
+        change: data?.occupancyChange || 0
+      }
+    ];
+    
       return (
-        <Paper sx={{ p: 3, mb: 4, borderLeft: '4px solid', borderColor: 'info.main' }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
-            <InfoIcon color="info" sx={{ mr: 1 }} />
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Как начать работу с отчетами
-              </Typography>
-              <Typography variant="body1" paragraph>
-                {isAdmin 
-                  ? "Чтобы увидеть статистику, выберите период в форме выше. Вы можете фильтровать данные по типу отчета и салону." 
-                  : "Для просмотра статистики выберите период в форме выше. Данные будут показаны для вашего салона."
+      <Grid container spacing={3}>
+        {metrics.map((metric, index) => (
+          <Grid item xs={12} sm={6} lg={3} key={index}>
+            <Card 
+              sx={{ 
+                height: '100%', 
+                borderRadius: 3,
+                boxShadow: cardBoxShadow,
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+                '&:hover': {
+                  transform: hoverTransform,
+                  boxShadow: '0 12px 28px rgba(149, 157, 165, 0.3)'
                 }
-              </Typography>
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                size="small"
-                onClick={() => {
-                  setDateRange({
-                    startDate: subDays(new Date(), 30),
-                    endDate: new Date()
-                  });
+              }}
+            >
+              <Box 
+                sx={{ 
+                  background: metric.gradient, 
+                  py: 1.5, 
+                  px: 2, 
+                  borderTopLeftRadius: 12, 
+                  borderTopRightRadius: 12
                 }}
               >
-                Показать данные за последние 30 дней
-              </Button>
-            </Box>
-          </Box>
-        </Paper>
-      );
-    }
-
-    // Защитно извлекаем данные статистики с проверками на существование
-    const adminStats = isAdmin ? (statsData?.appointment_stats || {}) : {};
-    const salonData = !isAdmin ? (statsData?.salon_stats || {}) : {};
-
-    // Безопасно получаем все нужные значения
-    const revenue = isAdmin ? (adminStats.revenue || 0) : (salonData.total_revenue || 0);
-    const total = isAdmin ? (adminStats.total || 0) : (salonData.total_appointments || 0);
-    const completed = isAdmin ? (adminStats.completed || 0) : (salonData.completed_appointments || 0);
-    const cancelled = isAdmin ? (adminStats.cancelled || 0) : (salonData.cancelled_appointments || 0);
-
-    return (
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={6} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 1 }}>Общая выручка</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <AttachMoneyIcon color="primary" sx={{ fontSize: isMobile ? 30 : 40, mr: 1 }} />
-                <Typography variant={isMobile ? "h5" : "h4"}>
-                  {revenue.toLocaleString()} ₽
+                <Typography variant="subtitle1" color="white" sx={{ fontWeight: 'bold' }}>
+                  {metric.title}
                 </Typography>
+              </Box>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+                      {metric.format(metric.value)}
+                </Typography>
+                    {metric.change !== undefined && (
+                      <Chip 
+                        label={`${metric.change >= 0 ? '+' : ''}${metric.change}%`} 
+                        size="small"
+                        color={metric.change >= 0 ? 'success' : 'error'}
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                    )}
+              </Box>
+                  <Box 
+                    sx={{ 
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: theme.palette.background.paper,
+                      boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                      color: theme.palette.primary.main
+                    }}
+                  >
+                    {metric.icon}
+              </Box>
               </Box>
             </CardContent>
           </Card>
         </Grid>
-        
-        <Grid item xs={6} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 1 }}>Всего записей</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <EventIcon color="primary" sx={{ fontSize: isMobile ? 30 : 40, mr: 1 }} />
-                <Typography variant={isMobile ? "h5" : "h4"}>
-                  {total}
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={6} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 1 }}>Завершенные</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <EventIcon color="success" sx={{ fontSize: isMobile ? 30 : 40, mr: 1 }} />
-                <Typography variant={isMobile ? "h5" : "h4"}>
-                  {completed}
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={6} sm={6} md={3}>
-          <Card>
-            <CardContent sx={{ p: isMobile ? 1.5 : 2 }}>
-              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 1 }}>Отмененные</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <EventIcon color="error" sx={{ fontSize: isMobile ? 30 : 40, mr: 1 }} />
-                <Typography variant={isMobile ? "h5" : "h4"}>
-                  {cancelled}
-                </Typography>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+        ))}
       </Grid>
     );
   };
@@ -651,102 +884,123 @@ const ReportsAndStatistics = () => {
     
     const error = isAdmin ? serviceStatsError : salonStatsError;
 
-    // Debug logging
-    React.useEffect(() => {
-      if (statsData) {
-        console.log('PopularServicesTable - statsData:', statsData);
-        
-        if (isAdmin) {
-          console.log('Admin services data structure:', {
-            services: statsData.services,
-            categories: statsData.categories
-          });
-        } else {
-          console.log('Employee salon_stats data structure:', {
-            salon_stats: statsData.salon_stats,
-            popular_services: statsData.popular_services,
-            top_employees: statsData.top_employees
-          });
-        }
-      }
-    }, [statsData, isAdmin]);
-
     // Безопасно извлекаем данные об услугах
     const services = isAdmin 
       ? (Array.isArray(serviceStatsData) ? serviceStatsData : [])
       : (salonStatsData?.top_services || []);
-      
-    // console.log('Services to display:', services);
 
     if (isMobile) {
       return (
-        <Card sx={{ mb: 4 }}>
-          <CardHeader 
-            title={
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <SpaIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6">Популярные услуги</Typography>
+        <Card 
+          sx={{ 
+            mb: 4, 
+            borderRadius: 3,
+            boxShadow: cardBoxShadow,
+            overflow: 'hidden'
+          }}
+        >
+          <Box 
+            sx={{ 
+              py: 2, 
+              px: 2.5, 
+              background: secondaryGradient,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <SpaIcon sx={{ mr: 1.5 }} />
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              Популярные услуги
+            </Typography>
               </Box>
-            }
-            sx={{ pb: 1 }}
-          />
-          <Divider />
-          <CardContent sx={{ p: isMobile ? 1 : 2 }}>
+          
+          <CardContent sx={{ p: 0 }}>
             {isLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                <CircularProgress size={24} />
-                <Typography variant="body2" sx={{ ml: 2 }}>
-                  Загрузка...
-                </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress sx={{ color: theme.palette.primary.main }} />
               </Box>
             ) : error ? (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error.message}
+              <Alert severity="error" sx={{ m: 2 }}>
+                Ошибка загрузки данных
               </Alert>
             ) : services.length > 0 ? (
               <List disablePadding>
                 {services.map((service, index) => (
                   <React.Fragment key={service.id || index}>
-                    {index > 0 && <Divider component="li" />}
+                    {index > 0 && <Divider />}
                     <ListItem 
                       sx={{ 
-                        py: 1.5, 
-                        px: 1,
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'flex-start'
+                        py: 2, 
+                        px: 2.5,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255,255,255,0.05)' 
+                            : 'rgba(0,0,0,0.02)'
+                        }
                       }}
                     >
-                      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                      <Box sx={{ width: '100%' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                           {service.name || 'Без названия'}
                         </Typography>
                         <Chip 
                           size="small" 
                           label={`${service.booking_count || 0} записей`}
-                          color="primary" 
-                          variant="outlined"
+                            sx={{ 
+                              fontWeight: 'bold',
+                              background: `${secondaryGradient}`,
+                              color: 'white' 
+                            }}
                         />
                       </Box>
-                      <Typography variant="body2" color="text.secondary" align="right" sx={{ alignSelf: 'flex-end' }}>
-                        Выручка: {((service.revenue || 0).toLocaleString())} ₽
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mt: 1
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary">
+                            Категория: {service.category || 'Без категории'}
                       </Typography>
+                          <Typography 
+                            variant="subtitle2" 
+                            sx={{ 
+                              fontWeight: 'bold',
+                              color: theme.palette.primary.main
+                            }}
+                          >
+                            {((service.revenue || 0).toLocaleString('ru-RU'))} ₽
+                          </Typography>
+                        </Box>
+                      </Box>
                     </ListItem>
                   </React.Fragment>
                 ))}
               </List>
             ) : (
-              <Box sx={{ p: 2, textAlign: 'center' }}>
-                <SpaIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
-                <Typography variant="body1" gutterBottom>
-                  Нет данных о популярных услугах
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <SpaIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Нет данных об услугах
                 </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  Попробуйте выбрать другой период времени или проверьте настройки фильтров.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Попробуйте изменить период времени
                 </Typography>
                 <Button 
                   variant="outlined" 
                   size="small" 
+                  sx={{ 
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }
+                  }}
                   onClick={() => {
                     setDateRange({
                       startDate: subDays(new Date(), 30),
@@ -754,7 +1008,7 @@ const ReportsAndStatistics = () => {
                     });
                   }}
                 >
-                  Показать за последние 30 дней
+                  Последние 30 дней
                 </Button>
               </Box>
             )}
@@ -764,48 +1018,130 @@ const ReportsAndStatistics = () => {
     }
 
     return (
-      <Card sx={{ mb: 4 }}>
-        <CardHeader 
-          title={
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <SpaIcon sx={{ mr: 1, color: 'primary.main' }} />
-              <Typography variant="h6">Популярные услуги</Typography>
+      <Card 
+        sx={{ 
+          mb: 4, 
+          borderRadius: 3,
+          boxShadow: cardBoxShadow,
+          overflow: 'hidden'
+        }}
+      >
+        <Box 
+          sx={{ 
+            py: 2, 
+            px: 3, 
+            background: secondaryGradient,
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <SpaIcon sx={{ mr: 1.5 }} />
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            Популярные услуги
+          </Typography>
             </Box>
-          }
-        />
+        
         <Divider />
-        <CardContent>
+        
+        <CardContent sx={{ p: 0 }}>
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 3, alignItems: 'center' }}>
-              <CircularProgress size={24} />
-              <Typography variant="body2" sx={{ ml: 2 }}>
-                Загрузка данных об услугах...
-              </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+              <CircularProgress sx={{ color: theme.palette.primary.main }} />
             </Box>
           ) : error ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              <AlertTitle>Ошибка</AlertTitle>
+            <Alert severity="error" sx={{ m: 3 }}>
+              <AlertTitle>Ошибка загрузки данных</AlertTitle>
               {error.message}
             </Alert>
           ) : services.length > 0 ? (
-            <TableContainer>
-              <Table>
+            <TableContainer sx={{ maxHeight: 400 }}>
+              <Table stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Услуга</TableCell>
-                    <TableCell align="right">Количество записей</TableCell>
-                    <TableCell align="right">Выручка</TableCell>
+                    <TableCell 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Услуга
+                    </TableCell>
+                    <TableCell 
+                      align="center" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Категория
+                    </TableCell>
+                    <TableCell 
+                      align="center" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Количество записей
+                    </TableCell>
+                    <TableCell 
+                      align="right" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Выручка
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {services.map((service, index) => (
-                    <TableRow key={service.id || index}>
-                      <TableCell>{service.name || 'Без названия'}</TableCell>
-                      <TableCell align="right">
-                        {service.booking_count || 0}
+                    <TableRow 
+                      key={service.id || index}
+                      sx={{
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255,255,255,0.05)' 
+                            : 'rgba(0,0,0,0.02)'
+                        }
+                      }}
+                    >
+                      <TableCell sx={{ fontWeight: 'medium' }}>
+                        {service.name || 'Без названия'}
                       </TableCell>
-                      <TableCell align="right">
-                        {((service.revenue || 0).toLocaleString())} ₽
+                      <TableCell align="center">
+                        {service.category || 'Без категории'}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip 
+                          label={service.booking_count || 0}
+                          size="small"
+                          sx={{ 
+                            fontWeight: 'bold',
+                            background: `${secondaryGradient}`,
+                            color: 'white' 
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell 
+                        align="right" 
+                        sx={{ 
+                          fontWeight: 'bold',
+                          color: theme.palette.primary.main
+                        }}
+                      >
+                        {((service.revenue || 0).toLocaleString('ru-RU'))} ₽
                       </TableCell>
                     </TableRow>
                   ))}
@@ -813,28 +1149,27 @@ const ReportsAndStatistics = () => {
               </Table>
             </TableContainer>
           ) : (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Box sx={{ p: 5, textAlign: 'center' }}>
               <SpaIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
               <Typography variant="h6" gutterBottom>
                 Нет данных о популярных услугах
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph>
-                Возможные причины:
+                Попробуйте выбрать другой период времени
               </Typography>
-              <Box sx={{ maxWidth: 400, mx: 'auto', textAlign: 'left', mb: 3 }}>
-                <Typography component="div" variant="body2" color="text.secondary">
-                  • Выбранный период не содержит данных о записях
-                </Typography>
-                <Typography component="div" variant="body2" color="text.secondary">
-                  • В выбранном салоне пока не было оказано услуг
-                </Typography>
-                <Typography component="div" variant="body2" color="text.secondary">
-                  • Данные ещё не обработаны системой
-                </Typography>
-              </Box>
               <Button 
-                variant="outlined" 
-                size="small" 
+                variant="contained" 
+                sx={{ 
+                  mt: 1,
+                  background: secondaryGradient,
+                  borderRadius: 2,
+                  boxShadow: buttonShadow,
+                  '&:hover': {
+                    background: secondaryGradient,
+                    transform: hoverTransform,
+                    boxShadow: '0 6px 15px rgba(0, 0, 0, 0.2)'
+                  }
+                }}
                 onClick={() => {
                   setDateRange({
                     startDate: subDays(new Date(), 30),
@@ -858,72 +1193,66 @@ const ReportsAndStatistics = () => {
     const isLoading = isAdmin ? isLoadingEmployeeStats : isLoadingSalonStats;
     const error = isAdmin ? employeeStatsError : salonStatsError;
 
-    // Debug logging
-    React.useEffect(() => {
-      // Отключаем вывод отладочных сообщений в консоль
-      // if (statsData) {
-      //   console.log('TopEmployeesTable - statsData:', statsData);
-      //   
-      //   if (isAdmin) {
-      //     // Now employeeStatsData is already the array of employees
-      //     console.log('Admin employee stats array:', Array.isArray(statsData), statsData);
-      //   } else {
-      //     console.log('Employee top_employees data structure:', {
-      //       salon_stats: statsData.salon_stats,
-      //       top_employees: statsData.top_employees
-      //     });
-      //   }
-      // }
-    }, [statsData, isAdmin]);
-
     // Безопасно извлекаем данные о сотрудниках
     const employees = isAdmin 
       ? (Array.isArray(statsData) ? statsData : [])
       : (statsData?.top_employees || []);
 
-    // console.log('Employees to display:', employees);
-
     if (isMobile) {
       return (
-        <Card sx={{ mb: 4 }}>
-          <CardHeader 
-            title={
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <PeopleIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6">Лучшие сотрудники</Typography>
+        <Card 
+          sx={{ 
+            mb: 4, 
+            borderRadius: 3,
+            boxShadow: cardBoxShadow,
+            overflow: 'hidden'
+          }}
+        >
+          <Box 
+            sx={{ 
+              py: 2, 
+              px: 2.5, 
+              background: infoGradient,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <PeopleIcon sx={{ mr: 1.5 }} />
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              Лучшие сотрудники
+            </Typography>
               </Box>
-            }
-            sx={{ pb: 1 }}
-          />
-          <Divider />
-          <CardContent sx={{ p: isMobile ? 1 : 2 }}>
+          
+          <CardContent sx={{ p: 0 }}>
             {isLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                <CircularProgress size={24} />
-                <Typography variant="body2" sx={{ ml: 2 }}>
-                  Загрузка...
-                </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress sx={{ color: theme.palette.primary.main }} />
               </Box>
             ) : error ? (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error.message}
+              <Alert severity="error" sx={{ m: 2 }}>
+                Ошибка загрузки данных
               </Alert>
             ) : employees && employees.length > 0 ? (
               <List disablePadding>
                 {employees.map((employee, index) => (
                   <React.Fragment key={employee.id || index}>
-                    {index > 0 && <Divider component="li" />}
+                    {index > 0 && <Divider />}
                     <ListItem 
                       sx={{ 
-                        py: 1.5, 
-                        px: 1,
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'flex-start'
+                        py: 2, 
+                        px: 2.5,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255,255,255,0.05)' 
+                            : 'rgba(0,0,0,0.02)'
+                        }
                       }}
                     >
-                      <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                      <Box sx={{ width: '100%' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                           {isAdmin 
                             ? `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Без имени'
                             : employee.name || 'Без имени'
@@ -934,8 +1263,11 @@ const ReportsAndStatistics = () => {
                           label={`${isAdmin 
                             ? employee.completed_appointments || 0
                             : employee.appointment_count || 0} записей`}
-                          color="primary" 
-                          variant="outlined"
+                            sx={{ 
+                              fontWeight: 'bold',
+                              background: `${infoGradient}`,
+                              color: 'white' 
+                            }}
                         />
                       </Box>
                       {isAdmin && (
@@ -943,28 +1275,54 @@ const ReportsAndStatistics = () => {
                           Салон: {employee.salon_name || 'Не указан'}
                         </Typography>
                       )}
-                      <Typography variant="body2" color="text.secondary" align="right" sx={{ alignSelf: 'flex-end' }}>
-                        Выручка: {((isAdmin 
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mt: 1
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary">
+                            {employee.position || 'Сотрудник'}
+                          </Typography>
+                          <Typography 
+                            variant="subtitle2" 
+                            sx={{ 
+                              fontWeight: 'bold',
+                              color: theme.palette.primary.main
+                            }}
+                          >
+                            {((isAdmin 
                           ? (employee.total_revenue || 0)
                           : (employee.revenue || 0)
-                        ).toLocaleString())} ₽
+                            ).toLocaleString('ru-RU'))} ₽
                       </Typography>
+                        </Box>
+                      </Box>
                     </ListItem>
                   </React.Fragment>
                 ))}
               </List>
             ) : (
-              <Box sx={{ p: 2, textAlign: 'center' }}>
-                <PeopleIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
-                <Typography variant="body1" gutterBottom>
-                  Нет данных о лучших сотрудниках
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <PeopleIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Нет данных о сотрудниках
                 </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  Попробуйте выбрать другой период времени или проверьте настройки фильтров.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Попробуйте изменить период времени
                 </Typography>
                 <Button 
                   variant="outlined" 
                   size="small" 
+                  sx={{ 
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }
+                  }}
                   onClick={() => {
                     setDateRange({
                       startDate: subDays(new Date(), 30),
@@ -972,7 +1330,7 @@ const ReportsAndStatistics = () => {
                     });
                   }}
                 >
-                  Показать за последние 30 дней
+                  Последние 30 дней
                 </Button>
               </Box>
             )}
@@ -982,44 +1340,118 @@ const ReportsAndStatistics = () => {
     }
 
     return (
-      <Card sx={{ mb: 4 }}>
-        <CardHeader 
-          title={
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <PeopleIcon sx={{ mr: 1, color: 'primary.main' }} />
-              <Typography variant="h6">Лучшие сотрудники</Typography>
+      <Card 
+        sx={{ 
+          mb: 4, 
+          borderRadius: 3,
+          boxShadow: cardBoxShadow,
+          overflow: 'hidden'
+        }}
+      >
+        <Box 
+          sx={{ 
+            py: 2, 
+            px: 3, 
+            background: infoGradient,
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          <PeopleIcon sx={{ mr: 1.5 }} />
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            Лучшие сотрудники
+          </Typography>
             </Box>
-          }
-        />
+        
         <Divider />
-        <CardContent>
+        
+        <CardContent sx={{ p: 0 }}>
           {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 3, alignItems: 'center' }}>
-              <CircularProgress size={24} />
-              <Typography variant="body2" sx={{ ml: 2 }}>
-                Загрузка данных о сотрудниках...
-              </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
+              <CircularProgress sx={{ color: theme.palette.primary.main }} />
             </Box>
           ) : error ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              <AlertTitle>Ошибка</AlertTitle>
+            <Alert severity="error" sx={{ m: 3 }}>
+              <AlertTitle>Ошибка загрузки данных</AlertTitle>
               {error.message}
             </Alert>
           ) : employees && employees.length > 0 ? (
-            <TableContainer>
-              <Table>
+            <TableContainer sx={{ maxHeight: 400 }}>
+              <Table stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Сотрудник</TableCell>
-                    {isAdmin && <TableCell>Салон</TableCell>}
-                    <TableCell align="right">Записей</TableCell>
-                    <TableCell align="right">Выручка</TableCell>
+                    <TableCell 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Сотрудник
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell 
+                        sx={{ 
+                          fontWeight: 'bold',
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? alpha(theme.palette.primary.dark, 0.8) 
+                            : alpha(theme.palette.primary.light, 0.1)  
+                        }}
+                      >
+                        Салон
+                      </TableCell>
+                    )}
+                    <TableCell 
+                      align="center" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Должность
+                    </TableCell>
+                    <TableCell 
+                      align="center" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Записей
+                    </TableCell>
+                    <TableCell 
+                      align="right" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.8) 
+                          : alpha(theme.palette.primary.light, 0.1)  
+                      }}
+                    >
+                      Выручка
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {employees.map((employee, index) => (
-                    <TableRow key={employee.id || index}>
-                      <TableCell>
+                    <TableRow 
+                      key={employee.id || index}
+                      sx={{
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: theme.palette.mode === 'dark' 
+                            ? 'rgba(255,255,255,0.05)' 
+                            : 'rgba(0,0,0,0.02)'
+                        }
+                      }}
+                    >
+                      <TableCell sx={{ fontWeight: 'medium' }}>
                         {isAdmin 
                           ? `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || 'Без имени'
                           : employee.name || 'Без имени'
@@ -1028,17 +1460,34 @@ const ReportsAndStatistics = () => {
                       {isAdmin && (
                         <TableCell>{employee.salon_name || 'Не указан'}</TableCell>
                       )}
-                      <TableCell align="right">
-                        {isAdmin 
+                      <TableCell align="center">
+                        {employee.position || 'Сотрудник'}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Chip 
+                          label={isAdmin 
                           ? employee.completed_appointments || 0
                           : employee.appointment_count || 0
                         }
+                          size="small"
+                          sx={{ 
+                            fontWeight: 'bold',
+                            background: `${infoGradient}`,
+                            color: 'white' 
+                          }}
+                        />
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell 
+                        align="right" 
+                        sx={{ 
+                          fontWeight: 'bold',
+                          color: theme.palette.primary.main
+                        }}
+                      >
                         {((isAdmin 
                           ? (employee.total_revenue || 0)
                           : (employee.revenue || 0)
-                        ).toLocaleString())} ₽
+                        ).toLocaleString('ru-RU'))} ₽
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1046,28 +1495,27 @@ const ReportsAndStatistics = () => {
               </Table>
             </TableContainer>
           ) : (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Box sx={{ p: 5, textAlign: 'center' }}>
               <PeopleIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
               <Typography variant="h6" gutterBottom>
                 Нет данных о лучших сотрудниках
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph>
-                Возможные причины:
+                Попробуйте выбрать другой период времени
               </Typography>
-              <Box sx={{ maxWidth: 400, mx: 'auto', textAlign: 'left', mb: 3 }}>
-                <Typography component="div" variant="body2" color="text.secondary">
-                  • Выбранный период не содержит данных о записях
-                </Typography>
-                <Typography component="div" variant="body2" color="text.secondary">
-                  • В выбранном салоне еще не было завершенных записей
-                </Typography>
-                <Typography component="div" variant="body2" color="text.secondary">
-                  • Данные еще не обработаны системой
-                </Typography>
-              </Box>
               <Button 
-                variant="outlined" 
-                size="small" 
+                variant="contained" 
+                sx={{ 
+                  mt: 1,
+                  background: infoGradient,
+                  borderRadius: 2,
+                  boxShadow: buttonShadow,
+                  '&:hover': {
+                    background: infoGradient,
+                    transform: hoverTransform,
+                    boxShadow: '0 6px 15px rgba(0, 0, 0, 0.2)'
+                  }
+                }}
                 onClick={() => {
                   setDateRange({
                     startDate: subDays(new Date(), 30),
@@ -1088,18 +1536,22 @@ const ReportsAndStatistics = () => {
   const ReportTable = () => {
     if (isLoadingFinancialStats) {
       return (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', my: 4, flexDirection: 'column', gap: 2 }}>
-          <CircularProgress />
-          <Typography variant="body2" color="text.secondary">
-            Загрузка финансовых данных...
-          </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress sx={{ color: theme.palette.primary.main }} />
         </Box>
       );
     }
 
     if (financialStatsError) {
       return (
-        <Alert severity="error" sx={{ mb: 4 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 4, 
+            borderRadius: 2,
+            boxShadow: cardBoxShadow 
+          }}
+        >
           <AlertTitle>Ошибка при загрузке данных</AlertTitle>
           {financialStatsError.message}
         </Alert>
@@ -1112,11 +1564,22 @@ const ReportsAndStatistics = () => {
 
     if (safeFilteredReportData.length === 0) {
       return (
-        <Paper sx={{ p: 3, mb: 4, borderLeft: '4px solid', borderColor: 'warning.main' }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
-            <InfoIcon color="warning" sx={{ mr: 1 }} />
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 3, 
+            mb: 4, 
+            borderRadius: 3,
+            background: 'linear-gradient(145deg, #f9f9f9 0%, #ffffff 100%)',
+            boxShadow: cardBoxShadow,
+            borderLeft: '4px solid',
+            borderColor: 'warning.main' 
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+            <InfoIcon color="warning" sx={{ mt: 0.5 }} />
             <Box>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
                 Нет данных для выбранного периода
               </Typography>
               <Typography variant="body1" paragraph>
@@ -1128,9 +1591,18 @@ const ReportsAndStatistics = () => {
                 gap: 1 
               }}>
                 <Button 
-                  variant="outlined" 
-                  color="primary" 
+                  variant="contained" 
                   size="small"
+                  sx={{ 
+                    background: primaryGradient,
+                    borderRadius: 2,
+                    boxShadow: buttonShadow,
+                    '&:hover': {
+                      background: primaryGradient,
+                      transform: hoverTransform,
+                      boxShadow: '0 6px 15px rgba(0, 0, 0, 0.2)'
+                    }
+                  }}
                   onClick={() => {
                     setDateRange({
                       startDate: startOfMonth(new Date()),
@@ -1141,9 +1613,18 @@ const ReportsAndStatistics = () => {
                   Текущий месяц
                 </Button>
                 <Button 
-                  variant="outlined" 
-                  color="primary" 
+                  variant="contained" 
                   size="small"
+                  sx={{ 
+                    background: secondaryGradient,
+                    borderRadius: 2,
+                    boxShadow: buttonShadow,
+                    '&:hover': {
+                      background: secondaryGradient,
+                      transform: hoverTransform,
+                      boxShadow: '0 6px 15px rgba(0, 0, 0, 0.2)'
+                    }
+                  }}
                   onClick={() => {
                     setDateRange({
                       startDate: subDays(new Date(), 30),
@@ -1158,6 +1639,13 @@ const ReportsAndStatistics = () => {
                     variant="outlined" 
                     color="primary" 
                     size="small"
+                    sx={{
+                      borderRadius: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }
+                    }}
                     onClick={() => {
                       setSelectedSalon('all');
                     }}
@@ -1180,27 +1668,55 @@ const ReportsAndStatistics = () => {
       return (
         <Box sx={{ mt: 3 }}>
           <div ref={printRef}>
-            <Paper elevation={2} sx={{ mb: 3, overflow: 'hidden', borderRadius: 1 }}>
-              <Box sx={{ 
-                p: 2, 
-                backgroundColor: 'primary.main', 
-                color: 'primary.contrastText',
-                borderTopLeftRadius: 4,
-                borderTopRightRadius: 4
-              }}>
-                <Typography variant="h6">Итоговые данные</Typography>
+            <Card 
+              sx={{ 
+                mb: 4, 
+                borderRadius: 3,
+                boxShadow: cardBoxShadow,
+                overflow: 'hidden'
+              }}
+            >
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  background: primaryGradient,
+                  color: 'white',
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Итоговые данные</Typography>
                 <Typography variant="body2">
                   {format(validStartDate, 'dd.MM.yyyy')} - {format(validEndDate, 'dd.MM.yyyy')}
                 </Typography>
               </Box>
+              
               <List disablePadding>
-                <ListItem divider>
+                <ListItem 
+                  divider 
+                  sx={{ 
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(255,255,255,0.05)' 
+                        : 'rgba(0,0,0,0.02)'
+                    }
+                  }}
+                >
                   <ListItemText primary="Всего записей" />
                   <Typography variant="body1" fontWeight="medium">
                     {safeTotals.appointments_count || 0}
                   </Typography>
                 </ListItem>
-                <ListItem divider>
+                <ListItem 
+                  divider
+                  sx={{ 
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(255,255,255,0.05)' 
+                        : 'rgba(0,0,0,0.02)'
+                    }
+                  }}
+                >
                   <ListItemText 
                     primary="Завершено"
                     secondary={`${Math.round((totalCompleted / (safeTotals.appointments_count || 1)) * 100)}% от общего числа`}
@@ -1209,7 +1725,17 @@ const ReportsAndStatistics = () => {
                     {totalCompleted}
                   </Typography>
                 </ListItem>
-                <ListItem divider>
+                <ListItem 
+                  divider
+                  sx={{ 
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? 'rgba(255,255,255,0.05)' 
+                        : 'rgba(0,0,0,0.02)'
+                    }
+                  }}
+                >
                   <ListItemText 
                     primary="Отменено"
                     secondary={`${Math.round((totalCancelled / (safeTotals.appointments_count || 1)) * 100)}% от общего числа`}
@@ -1218,36 +1744,87 @@ const ReportsAndStatistics = () => {
                     {totalCancelled}
                   </Typography>
                 </ListItem>
-                <ListItem sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                <ListItem sx={{ 
+                  backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? alpha(theme.palette.primary.main, 0.1)
+                      : alpha(theme.palette.primary.main, 0.08)
+                  }
+                }}>
                   <ListItemText 
                     primary="Общая выручка" 
                     primaryTypographyProps={{ fontWeight: 'bold' }}
                   />
-                  <Typography variant="h6" fontWeight="bold" color="primary">
-                    {((safeTotals.revenue || 0).toLocaleString())} ₽
+                  <Typography 
+                    variant="h6" 
+                    fontWeight="bold" 
+                    sx={{ 
+                      background: primaryGradient,
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}
+                  >
+                    {((safeTotals.revenue || 0).toLocaleString('ru-RU'))} ₽
                   </Typography>
                 </ListItem>
               </List>
-            </Paper>
+            </Card>
             
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', mt: 4 }}>
+            <Typography 
+              variant="h6" 
+              gutterBottom 
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                mt: 4,
+                mb: 2,
+                fontWeight: 'bold' 
+              }}
+            >
               <EventIcon sx={{ mr: 1 }} />
               Детализация по дням
             </Typography>
             
             {safeFilteredReportData.map((row, index) => (
-              <Accordion key={index} sx={{ mb: 1, borderLeft: '4px solid', borderColor: 'primary.main' }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Accordion 
+                key={index} 
+                sx={{ 
+                  mb: 1, 
+                  borderRadius: '12px !important',
+                  overflow: 'hidden',
+                  boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+                  '&:before': {
+                    display: 'none'
+                  },
+                  '&.Mui-expanded': {
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)',
+                  }
+                }}
+              >
+                <AccordionSummary 
+                  expandIcon={<ExpandMoreIcon />}
+                  sx={{
+                    background: 'linear-gradient(90deg, rgba(103, 58, 183, 0.05) 0%, rgba(255,255,255,0) 100%)'
+                  }}
+                >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
                       {format(new Date(row.date), 'dd.MM.yyyy')}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
                         {row.appointments_count || 0} записей
                       </Typography>
-                      <Typography variant="subtitle2" color="primary.main" fontWeight="bold">
-                        {((row.revenue || 0).toLocaleString())} ₽
+                      <Typography 
+                        variant="subtitle2" 
+                        sx={{ 
+                          fontWeight: 'bold',
+                          color: theme.palette.primary.main
+                        }}
+                      >
+                        {((row.revenue || 0).toLocaleString('ru-RU'))} ₽
                       </Typography>
                     </Box>
                   </Box>
@@ -1280,10 +1857,16 @@ const ReportsAndStatistics = () => {
                         {row.cancelled_count || 0}
                       </Typography>
                     </ListItem>
-                    <ListItem sx={{ py: 1, backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                    <ListItem sx={{ py: 1, backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
                       <ListItemText primary="Выручка" primaryTypographyProps={{ fontWeight: 'bold' }} />
-                      <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                        {((row.revenue || 0).toLocaleString())} ₽
+                      <Typography 
+                        variant="body1" 
+                        sx={{ 
+                          fontWeight: 'bold', 
+                          color: theme.palette.primary.main 
+                        }}
+                      >
+                        {((row.revenue || 0).toLocaleString('ru-RU'))} ₽
                       </Typography>
                     </ListItem>
                   </List>
@@ -1298,10 +1881,22 @@ const ReportsAndStatistics = () => {
     return (
       <Box sx={{ mt: 3 }}>
         <div ref={printRef}>
-          <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 1 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+          <Card 
+            sx={{ 
+              mb: 4, 
+              borderRadius: 3,
+              boxShadow: cardBoxShadow
+            }}
+          >
+            <Box 
+              sx={{ 
+                p: 3, 
+                background: 'linear-gradient(145deg, rgba(103, 58, 183, 0.05) 0%, rgba(255,255,255,0) 100%)',
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <Box>
-                <Typography variant="h6" gutterBottom>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
                   {reportType === 'revenue' ? 'Финансовый отчет' : 'Отчет по записям'}
                 </Typography>
                 <Typography variant="body1">
@@ -1330,37 +1925,75 @@ const ReportsAndStatistics = () => {
                 <Typography variant="body1" gutterBottom color="error.main">
                   <strong>Отменено:</strong> {totalCancelled} ({Math.round((totalCancelled / (safeTotals.appointments_count || 1)) * 100)}%)
                 </Typography>
-                <Typography variant="h6" color="primary.main" fontWeight="bold">
-                  <strong>Общая выручка:</strong> {((safeTotals.revenue || 0).toLocaleString())} ₽
+                  <Typography 
+                    variant="h6" 
+                    fontWeight="bold" 
+                    sx={{ 
+                      background: primaryGradient,
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}
+                  >
+                    <strong>Общая выручка:</strong> {((safeTotals.revenue || 0).toLocaleString('ru-RU'))} ₽
                 </Typography>
               </Box>
             </Box>
-          </Paper>
+            </Box>
+          </Card>
         
-          <TableContainer component={Paper} elevation={1} sx={{ borderRadius: 1 }}>
+          <TableContainer 
+            component={Card} 
+            sx={{ 
+              borderRadius: 3,
+              boxShadow: cardBoxShadow,
+              overflow: 'hidden' 
+            }}
+          >
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: theme.palette.primary.main }}>
-                  <TableCell sx={{ color: theme.palette.primary.contrastText, fontWeight: 'bold' }}>Дата</TableCell>
-                  {selectedSalon === 'all' && <TableCell sx={{ color: theme.palette.primary.contrastText, fontWeight: 'bold' }}>Салон</TableCell>}
-                  <TableCell align="right" sx={{ color: theme.palette.primary.contrastText, fontWeight: 'bold' }}>Количество записей</TableCell>
-                  <TableCell align="right" sx={{ color: theme.palette.primary.contrastText, fontWeight: 'bold' }}>Завершено</TableCell>
-                  <TableCell align="right" sx={{ color: theme.palette.primary.contrastText, fontWeight: 'bold' }}>Отменено</TableCell>
-                  <TableCell align="right" sx={{ color: theme.palette.primary.contrastText, fontWeight: 'bold' }}>Выручка</TableCell>
+                <TableRow sx={{ background: primaryGradient }}>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Дата</TableCell>
+                  {selectedSalon === 'all' && <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Салон</TableCell>}
+                  <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Количество записей</TableCell>
+                  <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Завершено</TableCell>
+                  <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Отменено</TableCell>
+                  <TableCell align="right" sx={{ color: 'white', fontWeight: 'bold' }}>Выручка</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {safeFilteredReportData.map((row, index) => (
-                  <TableRow key={index} hover>
+                  <TableRow 
+                    key={index} 
+                    sx={{
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? 'rgba(255,255,255,0.05)' 
+                          : 'rgba(0,0,0,0.02)'
+                      }
+                    }}
+                  >
                     <TableCell sx={{ fontWeight: 'medium' }}>{format(new Date(row.date), 'dd.MM.yyyy')}</TableCell>
                     {selectedSalon === 'all' && <TableCell>{row.salon_name || 'Без названия'}</TableCell>}
                     <TableCell align="right">{row.appointments_count || 0}</TableCell>
                     <TableCell align="right" sx={{ color: 'success.main' }}>{row.completed_count || 0}</TableCell>
                     <TableCell align="right" sx={{ color: 'error.main' }}>{row.cancelled_count || 0}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{((row.revenue || 0).toLocaleString())} ₽</TableCell>
+                    <TableCell 
+                      align="right" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        color: theme.palette.primary.main
+                      }}
+                    >
+                      {((row.revenue || 0).toLocaleString('ru-RU'))} ₽
+                    </TableCell>
                   </TableRow>
                 ))}
-                <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
+                <TableRow sx={{ 
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? alpha(theme.palette.primary.dark, 0.15) 
+                    : alpha(theme.palette.primary.light, 0.15)  
+                }}>
                   <TableCell colSpan={selectedSalon === 'all' ? 2 : 1} sx={{ fontWeight: 'bold' }}>Итого</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold' }}>{safeTotals.appointments_count || 0}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>
@@ -1369,7 +2002,18 @@ const ReportsAndStatistics = () => {
                   <TableCell align="right" sx={{ fontWeight: 'bold', color: 'error.main' }}>
                     {totalCancelled}
                   </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>{((safeTotals.revenue || 0).toLocaleString())} ₽</TableCell>
+                  <TableCell 
+                    align="right" 
+                    sx={{ 
+                      fontWeight: 'bold', 
+                      fontSize: '1.1rem',
+                      background: primaryGradient,
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}
+                  >
+                    {((safeTotals.revenue || 0).toLocaleString('ru-RU'))} ₽
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -1379,337 +2023,300 @@ const ReportsAndStatistics = () => {
     );
   };
 
-  // Форма для создания отчета - адаптированная для мобильных устройств
+  // Обновленный ReportForm с современным дизайном
   const ReportForm = () => (
     <Paper 
+      elevation={0} 
       sx={{ 
-        p: isMobile ? 2 : 3, 
-        mb: 3,
-        borderTop: '4px solid',
-        borderColor: 'primary.main',
+        p: 3, 
+        mb: 4, 
+        borderRadius: 3,
+        background: theme.palette.mode === 'dark' 
+          ? 'linear-gradient(145deg, rgba(27,27,27,1) 0%, rgba(40,40,40,1) 100%)' 
+          : 'linear-gradient(145deg, #f9f9f9 0%, #ffffff 100%)',
+        boxShadow: cardBoxShadow
       }}
-      elevation={2}
     >
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-        <TimelineIcon sx={{ mr: 1 }} /> 
-        Параметры отчета
-        <IconButton 
-          size="small" 
-          sx={{ ml: 1 }} 
-          onClick={toggleHelp}
-          aria-label="Показать справку"
-        >
-          <HelpOutlineIcon fontSize="small" />
-        </IconButton>
-      </Typography>
-      
-      {helpOpen && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          <AlertTitle>Как работать с отчетами</AlertTitle>
-          <Typography variant="body2" paragraph>
-            1. Выберите тип отчета (финансовый или по записям)
-          </Typography>
-          <Typography variant="body2" paragraph>
-            2. {isAdmin ? "Выберите салон или 'Все салоны'" : "Отчет показывается для вашего салона"}
-          </Typography>
-          <Typography variant="body2" paragraph>
-            3. Укажите период (начальная и конечная даты)
-          </Typography>
-          <Typography variant="body2">
-            4. Используйте вкладки ниже для просмотра разных типов статистики
-          </Typography>
-        </Alert>
-      )}
-      
-      <Grid container spacing={isMobile ? 2 : 3} alignItems="center">
-        <Grid item xs={12} md={3}>
-          <FormControl fullWidth size={isMobile ? "small" : "medium"}>
-            <InputLabel id="report-type-label">Тип отчета</InputLabel>
+      <Stack 
+        direction={{ xs: 'column', md: 'row' }} 
+        spacing={2} 
+        alignItems={{ xs: 'stretch', md: 'flex-end' }}
+      >
+        {user?.role === 'admin' && (
+          <FormControl fullWidth sx={{ minWidth: 200 }}>
+            <InputLabel id="salon-select-label">Салон</InputLabel>
             <Select
-              labelId="report-type-label"
-              id="report-type"
-              value={reportType}
-              label="Тип отчета"
-              onChange={handleReportTypeChange}
-            >
-              <MenuItem value="revenue">Финансовый отчет</MenuItem>
-              <MenuItem value="appointments">Отчет по записям</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <FormControl fullWidth disabled={!isAdmin} size={isMobile ? "small" : "medium"}>
-            <InputLabel id="salon-label">Салон</InputLabel>
-            <Select
-              labelId="salon-label"
+              labelId="salon-select-label"
               id="salon-select"
               value={selectedSalon}
-              label="Салон"
               onChange={handleSalonChange}
+              label="Салон"
+              disabled={isLoadingSalons}
+              sx={{ 
+                borderRadius: 2,
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'
+                }
+              }}
             >
-              {isAdmin && <MenuItem value="all">Все салоны</MenuItem>}
-              {isLoadingSalons ? (
-                <MenuItem disabled>Загрузка салонов...</MenuItem>
-              ) : (
-                displaySalons.map((salon) => (
+              <MenuItem value="all">Все салоны</MenuItem>
+              {salons?.map((salon) => (
                   <MenuItem key={salon.id} value={salon.id.toString()}>
                     {salon.name}
                   </MenuItem>
-                ))
-              )}
+              ))}
             </Select>
           </FormControl>
-        </Grid>
-        
-        <Grid item xs={6} md={2}>
+        )}
+        <FormControl fullWidth sx={{ minWidth: 200 }}>
+          <InputLabel id="report-type-label">Тип отчёта</InputLabel>
+          <Select
+            labelId="report-type-label"
+            id="report-type"
+            value={reportType}
+            onChange={handleReportTypeChange}
+            label="Тип отчёта"
+            sx={{ 
+              borderRadius: 2,
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'
+              }
+            }}
+          >
+            <MenuItem value="revenue">Выручка</MenuItem>
+            <MenuItem value="appointments">Записи</MenuItem>
+            <MenuItem value="services">Услуги</MenuItem>
+            <MenuItem value="clients">Клиенты</MenuItem>
+            </Select>
+          </FormControl>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
             <DatePicker
-              label="Дата начала"
+            label="Начало периода"
               value={dateRange.startDate}
               onChange={handleStartDateChange}
-              slotProps={{ 
-                textField: { 
-                  fullWidth: true, 
-                  size: isMobile ? "small" : "medium" 
+            renderInput={(params) => (
+              <TextField 
+                {...params} 
+                fullWidth 
+                sx={{ 
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
                 } 
               }}
             />
-          </LocalizationProvider>
-        </Grid>
-        
-        <Grid item xs={6} md={2}>
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
+            )}
+          />
             <DatePicker
-              label="Дата окончания"
+            label="Конец периода"
               value={dateRange.endDate}
               onChange={handleEndDateChange}
-              slotProps={{ 
-                textField: { 
-                  fullWidth: true, 
-                  size: isMobile ? "small" : "medium" 
-                } 
-              }}
+            renderInput={(params) => (
+              <TextField 
+                {...params} 
+                fullWidth 
+                sx={{ 
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }} 
+              />
+            )}
             />
           </LocalizationProvider>
-        </Grid>
-        
-        <Grid item xs={12} md={2}>
-          <Stack 
-            direction={isMobile ? "row" : "row"} 
-            spacing={1} 
-            justifyContent={{ xs: 'space-between', md: 'flex-end' }}
-            sx={{ mt: isMobile ? 1 : 0 }}
-          >
+        <Box sx={{ display: 'flex', gap: 1 }}>
             <Button 
-              variant="outlined" 
-              startIcon={<DownloadIcon />}
-              size={isMobile ? "small" : "medium"}
-              disabled={
-                isLoadingFinancialStats || 
-                !financialStatsData || 
-                (filteredReportData && filteredReportData.length === 0)
-              }
-              onClick={exportToCSV}
-              title="Экспортировать данные в Excel формате"
-            >
-              {isMobile ? "Excel" : "Экспорт в Excel"}
-            </Button>
-            <Button 
-              variant="outlined" 
+            onClick={handlePrint}
+            variant="contained"
               startIcon={<PrintIcon />}
-              size={isMobile ? "small" : "medium"}
-              disabled={
-                tabValue !== 3 || // Активируем только на вкладке Финансы
-                isLoadingFinancialStats || 
-                !financialStatsData || 
-                (filteredReportData && filteredReportData.length === 0)
+            sx={{
+              background: primaryGradient,
+              boxShadow: buttonShadow,
+              borderRadius: 2,
+              transition: 'transform 0.3s, box-shadow 0.3s',
+              '&:hover': {
+                background: primaryGradient,
+                transform: hoverTransform,
+                boxShadow: '0 6px 15px rgba(0, 0, 0, 0.2)'
               }
-              onClick={handlePrint}
-              title={tabValue !== 3 ? 
-                "Печать доступна только на вкладке Финансы" : 
-                "Распечатать отчет"
-              }
-            >
-              {isMobile ? "Печать" : "Печать отчета"}
-            </Button>
-          </Stack>
-        </Grid>
-      </Grid>
-      
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-        <Button
-          color="primary"
-          startIcon={<EventIcon />}
-          size="small"
-          onClick={() => {
-            setDateRange({
-              startDate: startOfMonth(new Date()),
-              endDate: endOfMonth(new Date())
-            });
-          }}
-          sx={{ mr: 1 }}
-        >
-          Текущий месяц
+            }}
+          >
+            Печать
         </Button>
         <Button
-          color="primary"
-          startIcon={<EventIcon />}
-          size="small"
-          onClick={() => {
-            setDateRange({
-              startDate: subDays(new Date(), 7),
-              endDate: new Date()
-            });
-          }}
-          sx={{ mr: 1 }}
-        >
-          Последние 7 дней
-        </Button>
-        <Button
-          color="primary"
-          startIcon={<EventIcon />}
-          size="small"
-          onClick={() => {
-            setDateRange({
-              startDate: subDays(new Date(), 30),
-              endDate: new Date()
-            });
-          }}
-        >
-          Последние 30 дней
+            onClick={exportToCSV}
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            sx={{
+              background: secondaryGradient,
+              boxShadow: buttonShadow,
+              borderRadius: 2,
+              transition: 'transform 0.3s, box-shadow 0.3s',
+              '&:hover': {
+                background: secondaryGradient,
+                transform: hoverTransform,
+                boxShadow: '0 6px 15px rgba(0, 0, 0, 0.2)'
+              }
+            }}
+          >
+            CSV
         </Button>
       </Box>
+      </Stack>
     </Paper>
   );
 
   return (
-    <Box>
-      <Typography 
-        variant={isMobile ? "h6" : "h5"} 
-        gutterBottom
+    <Box sx={{ pb: 4 }}>
+      <Box 
         sx={{ 
           display: 'flex', 
+          justifyContent: 'space-between', 
           alignItems: 'center',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          pb: 1,
-          mb: 3
+          mb: 3,
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: 2
         }}
       >
-        <BarChartIcon sx={{ mr: 1 }} />
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          sx={{ 
+            fontWeight: 700,
+            background: primaryGradient,
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}
+        >
         Отчеты и статистика
       </Typography>
+        <IconButton 
+          onClick={toggleHelp}
+          sx={{ 
+            color: theme.palette.primary.main, 
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+            '&:hover': {
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+            }
+          }}
+          aria-label="Справка по отчетам"
+        >
+          <HelpOutlineIcon />
+        </IconButton>
+      </Box>
+      
+      {helpOpen && (
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 3, 
+            mb: 3, 
+            borderRadius: 3,
+            background: infoGradient,
+            color: 'white',
+            boxShadow: cardBoxShadow
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+            <InfoIcon sx={{ mt: 0.5 }} />
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                Справка по отчетам
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                В этом разделе вы можете просматривать различные отчеты и статистику по работе салона.
+              </Typography>
+              <Typography variant="body2">
+                • <strong>Выручка</strong> - финансовые показатели за период<br />
+                • <strong>Записи</strong> - данные о записях клиентов<br />
+                • <strong>Услуги</strong> - статистика по популярности услуг<br />
+                • <strong>Клиенты</strong> - информация о клиентах и их активности
+              </Typography>
+            </Box>
+            <IconButton 
+              onClick={toggleHelp} 
+              sx={{ 
+                color: 'white', 
+                bgcolor: 'rgba(255,255,255,0.1)',
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                }
+              }}
+              aria-label="Закрыть справку"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </Paper>
+      )}
       
       <ReportForm />
       
-      <Box sx={{ 
-        borderBottom: 1, 
-        borderColor: 'divider',
-        backgroundColor: theme.palette.background.paper,
-        borderRadius: 1,
-        mb: 3,
-      }}>
+      <Box sx={{ mb: 4 }}>
         <Tabs 
           value={tabValue} 
           onChange={handleTabChange} 
-          variant="scrollable"
-          scrollButtons="auto"
-          aria-label="reports tabs"
-          centered={!isMobile}
+          variant={isMobile ? "scrollable" : "fullWidth"}
+          scrollButtons={isMobile ? "auto" : false}
+          allowScrollButtonsMobile
+          textColor="primary"
+          indicatorColor="primary"
           sx={{
+            mb: 2,
             '& .MuiTab-root': {
-              minHeight: isMobile ? '60px' : '72px',
-              minWidth: isMobile ? '80px' : '120px',
+              fontWeight: 'bold',
+              transition: 'all 0.3s',
+              '&:hover': {
+                color: theme.palette.primary.main,
+                opacity: 1
+              }
+            },
+            '& .Mui-selected': {
+              color: theme.palette.primary.main,
+            },
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: 1.5
             }
           }}
         >
           <Tab 
             icon={<BarChartIcon />} 
-            iconPosition={isMobile ? "top" : "start"} 
-            label={isMobile ? "Обзор" : "Обзор"} 
-            aria-label="Обзор"
-          />
-          <Tab 
-            icon={<PeopleIcon />} 
-            iconPosition={isMobile ? "top" : "start"} 
-            label={isMobile ? "Сотрудники" : "Сотрудники"} 
-            aria-label="Сотрудники"
+            label="Общие метрики" 
+            iconPosition="start"
           />
           <Tab 
             icon={<SpaIcon />} 
-            iconPosition={isMobile ? "top" : "start"} 
-            label={isMobile ? "Услуги" : "Услуги"} 
-            aria-label="Услуги"
+            label="Популярные услуги" 
+            iconPosition="start"
+          />
+          <Tab 
+            icon={<PeopleIcon />} 
+            label="Топ сотрудников" 
+            iconPosition="start"
           />
           <Tab 
             icon={<AttachMoneyIcon />}
-            iconPosition={isMobile ? "top" : "start"} 
-            label={isMobile ? "Финансы" : "Финансы"} 
-            aria-label="Финансы"
+            label="Детальный отчет" 
+            iconPosition="start"
           />
         </Tabs>
-      </Box>
       
       <TabPanel value={tabValue} index={0}>
         <KeyMetricsCards />
-        <Grid container spacing={isMobile ? 2 : 3}>
-          <Grid item xs={12} md={6}>
-            <PopularServicesTable />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TopEmployeesTable />
-          </Grid>
-        </Grid>
       </TabPanel>
       
       <TabPanel value={tabValue} index={1}>
-        <Typography 
-          variant={isMobile ? "subtitle1" : "h6"} 
-          gutterBottom
-          sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            mb: 2
-          }}
-        >
-          <PeopleIcon sx={{ mr: 1 }} />
-          Статистика по сотрудникам
-        </Typography>
-        <TopEmployeesTable />
+          <PopularServicesTable />
       </TabPanel>
       
       <TabPanel value={tabValue} index={2}>
-        <Typography 
-          variant={isMobile ? "subtitle1" : "h6"} 
-          gutterBottom
-          sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            mb: 2
-          }}
-        >
-          <SpaIcon sx={{ mr: 1 }} />
-          Статистика по услугам
-        </Typography>
-        <PopularServicesTable />
+          <TopEmployeesTable />
       </TabPanel>
       
       <TabPanel value={tabValue} index={3}>
-        <Typography 
-          variant={isMobile ? "subtitle1" : "h6"} 
-          gutterBottom
-          sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            mb: 2
-          }}
-        >
-          <AttachMoneyIcon sx={{ mr: 1 }} />
-          {reportType === 'revenue' ? 'Финансовый отчет' : 'Отчет по записям'}
-        </Typography>
         <ReportTable />
       </TabPanel>
+      </Box>
     </Box>
   );
 };

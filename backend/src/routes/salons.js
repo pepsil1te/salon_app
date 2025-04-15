@@ -12,7 +12,7 @@ router.get('/', cache(), asyncHandler(async (req, res) => {
   
   const { rows } = await db.query(
     `SELECT s.id, s.name, s.address, s.contact_info, s.working_hours, s.status, 
-            s.image_url, s.description, s.created_at, s.updated_at,
+            s.image_url, s.description, s.created_at, s.updated_at, s.is_active,
             (SELECT COUNT(*) FROM services WHERE salon_id = s.id) as services_count,
             (SELECT COUNT(*) FROM employees WHERE salon_id = s.id) as employees_count
      FROM salons s
@@ -31,7 +31,7 @@ router.get('/:id', cache(), asyncHandler(async (req, res) => {
   
   const { rows } = await db.query(
     `SELECT s.id, s.name, s.address, s.contact_info, s.working_hours, s.status, 
-            s.image_url, s.description, s.created_at, s.updated_at,
+            s.image_url, s.description, s.created_at, s.updated_at, s.is_active,
             (SELECT COUNT(*) FROM services WHERE salon_id = s.id) as services_count,
             (SELECT COUNT(*) FROM employees WHERE salon_id = s.id) as employees_count
      FROM salons s
@@ -82,7 +82,7 @@ router.put('/:id',
   
   try {
     const salonId = req.params.id;
-    const { name, address, contact_info, working_hours, status, image_url, description } = req.body;
+    const { name, address, contact_info, working_hours, status, image_url, description, is_active } = req.body;
     
     logger.info(`Обновление салона #${salonId}`, { 
       user: req.user?.userId,
@@ -119,10 +119,11 @@ router.put('/:id',
            working_hours = $4,
            status = $5,
            image_url = $6,
-           description = $7
-       WHERE id = $8
+           description = $7,
+           is_active = $8
+       WHERE id = $9
        RETURNING *`,
-      [name, address, contact_info, working_hours, status || 'active', image_url, description, salonId]
+      [name, address, contact_info, working_hours, status || 'active', image_url, description, is_active !== undefined ? !!is_active : true, salonId]
     );
     
     // Фиксируем транзакцию

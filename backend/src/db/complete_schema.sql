@@ -48,6 +48,21 @@ CREATE TABLE IF NOT EXISTS services (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Создание таблицы категорий услуг
+CREATE TABLE IF NOT EXISTS service_categories (
+    id SERIAL PRIMARY KEY,
+    salon_id INTEGER REFERENCES salons(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    color VARCHAR(20) DEFAULT '#3f51b5',
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index for service categories
+CREATE INDEX IF NOT EXISTS idx_service_categories_salon_id ON service_categories(salon_id);
+
 -- Создание таблицы сотрудников
 CREATE TABLE IF NOT EXISTS employees (
     id SERIAL PRIMARY KEY,
@@ -86,6 +101,19 @@ CREATE TABLE IF NOT EXISTS appointments (
     date_time TIMESTAMP WITH TIME ZONE NOT NULL,
     status appointment_status DEFAULT 'pending',
     notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Создание таблицы отзывов
+CREATE TABLE IF NOT EXISTS reviews (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+    salon_id INTEGER REFERENCES salons(id) ON DELETE CASCADE,
+    employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+    appointment_id INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
+    rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -147,6 +175,26 @@ CREATE TABLE IF NOT EXISTS employee_statistics (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Таблица бонусных баллов клиентов
+CREATE TABLE IF NOT EXISTS client_bonuses (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+    points INTEGER NOT NULL DEFAULT 0,
+    source VARCHAR(100) NOT NULL, -- appointment, referral, promotion, etc.
+    source_id INTEGER, -- id of the appointment, promotion, etc.
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Таблица избранных салонов клиента
+CREATE TABLE IF NOT EXISTS favorite_salons (
+    id SERIAL PRIMARY KEY,
+    client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+    salon_id INTEGER REFERENCES salons(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(client_id, salon_id)
+);
+
 -- ЧАСТЬ 4: СОЗДАНИЕ ИНДЕКСОВ
 -- =============================================
 
@@ -157,6 +205,10 @@ CREATE INDEX IF NOT EXISTS idx_appointments_date_time ON appointments(date_time)
 CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
 CREATE INDEX IF NOT EXISTS idx_appointments_employee_id ON appointments(employee_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_salon_id ON appointments(salon_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_client_id ON appointments(client_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_client_id ON reviews(client_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_salon_id ON reviews(salon_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_appointment_id ON reviews(appointment_id);
 
 -- Индексы для таблиц статистики
 CREATE INDEX IF NOT EXISTS idx_appointment_statistics_appointment_id ON appointment_statistics(appointment_id);
@@ -176,6 +228,13 @@ CREATE INDEX IF NOT EXISTS idx_service_statistics_date ON service_statistics(dat
 CREATE INDEX IF NOT EXISTS idx_employee_statistics_employee_id ON employee_statistics(employee_id);
 CREATE INDEX IF NOT EXISTS idx_employee_statistics_salon_id ON employee_statistics(salon_id);
 CREATE INDEX IF NOT EXISTS idx_employee_statistics_date ON employee_statistics(date);
+
+-- Индексы для таблиц клиентских данных
+CREATE INDEX IF NOT EXISTS idx_client_bonuses_client_id ON client_bonuses(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_bonuses_source ON client_bonuses(source);
+
+CREATE INDEX IF NOT EXISTS idx_favorite_salons_client_id ON favorite_salons(client_id);
+CREATE INDEX IF NOT EXISTS idx_favorite_salons_salon_id ON favorite_salons(salon_id);
 
 -- ЧАСТЬ 5: СОЗДАНИЕ ФУНКЦИЙ И ТРИГГЕРОВ
 -- =============================================

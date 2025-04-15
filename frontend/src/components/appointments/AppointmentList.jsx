@@ -183,63 +183,8 @@ const AppointmentList = () => {
     return tabValue === 0 ? dateA - dateB : dateB - dateA;
   });
 
-  // Используем тестовые данные для записей, если API не вернуло результаты
-  const mockAppointments = [
-    {
-      id: 1,
-      service_id: 1,
-      service_name: 'Женская стрижка',
-      salon_id: 1,
-      salon_name: 'Салон красоты "Элегант"',
-      salon_address: 'ул. Пушкина, д. 10',
-      employee_id: 1,
-      employee_name: 'Анна Иванова',
-      date_time: '2025-03-30T14:00:00Z',
-      duration: 60,
-      price: 1500,
-      status: 'pending',
-      notes: '',
-      review: null
-    },
-    {
-      id: 2,
-      service_id: 2,
-      service_name: 'Маникюр',
-      salon_id: 1,
-      salon_name: 'Салон красоты "Элегант"',
-      salon_address: 'ул. Пушкина, д. 10',
-      employee_id: 2,
-      employee_name: 'Елена Петрова',
-      date_time: '2025-03-25T10:00:00Z',
-      duration: 45,
-      price: 800,
-      status: 'completed',
-      notes: '',
-      review: {
-        rating: 5,
-        comment: 'Отличный сервис!'
-      }
-    },
-    {
-      id: 3,
-      service_id: 3,
-      service_name: 'Окрашивание волос',
-      salon_id: 2,
-      salon_name: 'Салон красоты "Бьюти"',
-      salon_address: 'ул. Лермонтова, д. 5',
-      employee_id: 3,
-      employee_name: 'Ольга Сидорова',
-      date_time: '2025-03-20T16:00:00Z',
-      duration: 120,
-      price: 3000,
-      status: 'cancelled',
-      cancel_reason: 'Изменились планы',
-      notes: '',
-      review: null
-    }
-  ];
-
-  const appointmentList = appointments || mockAppointments;
+  // Используем только реальные данные из API
+  const appointmentList = appointments || [];
 
   if (isLoading) {
     return (

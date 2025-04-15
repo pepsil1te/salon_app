@@ -202,54 +202,6 @@ const Login = () => {
     // Нормализуем номер телефона
     const normalizedPhone = normalizePhoneNumber(phone);
     
-    // Проверка на специальный номер для админа
-    if (normalizedPhone === '+79999999999') {
-      // Создаем фиктивного пользователя-администратора
-      console.log('Администратор: вход с номером +79999999999');
-      const mockAdminData = {
-        id: 999,
-        role: 'admin',
-        name: 'Администратор',
-        phoneNumber: normalizedPhone
-      };
-      
-      // Функция для корректного Base64 кодирования с поддержкой UTF-8
-      const base64UrlEncode = (str) => {
-        // Сначала преобразуем строку в URL-safe base64
-        const base64 = window.btoa(unescape(encodeURIComponent(str)));
-        // Затем заменяем символы для соответствия формату JWT (base64url)
-        return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      };
-      
-      // Создаем правильный JWT токен вместо простой строки
-      // JWT структура: header.payload.signature
-      const header = base64UrlEncode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-      const payload = base64UrlEncode(JSON.stringify({ 
-        userId: 999, 
-        role: 'admin',
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // 7 дней
-      }));
-      const signature = base64UrlEncode('mock-signature'); // В реальности должна быть настоящая подпись
-      
-      // Формируем JWT токен
-      const token = `${header}.${payload}.${signature}`;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('mockUser', JSON.stringify(mockAdminData));
-      queryClient.setQueryData('userProfile', mockAdminData);
-      
-      // Запускаем индикатор загрузки
-      setIsRedirecting(true);
-      
-      // Используем navigate для SPA-навигации
-      setTimeout(() => {
-        navigate('/admin');
-      }, 100);
-      
-      return;
-    }
-
     // Отладочный лог для проверки вызова API
     console.log('Вызываем API phoneLogin с номером:', normalizedPhone);
     
@@ -390,12 +342,6 @@ const Login = () => {
               >
                 Продолжить
               </Button>
-              
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  * Для входа администратором используйте номер +79999999999
-                </Typography>
-              </Box>
             </form>
           ) : (
             // Шаг 2: Регистрация нового пользователя

@@ -77,6 +77,61 @@ router.get('/client', verifyToken, async (req, res) => {
   }
 });
 
+// Get client's upcoming appointments
+router.get('/upcoming', verifyToken, async (req, res) => {
+  try {
+    const currentDate = new Date().toISOString();
+    
+    const { rows } = await db.query(
+      `SELECT a.*, 
+              s.name as service_name, s.duration, s.price,
+              e.name as employee_name,
+              sal.name as salon_name, sal.id as salon_id
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       JOIN employees e ON a.employee_id = e.id
+       JOIN salons sal ON a.salon_id = sal.id
+       WHERE a.client_id = $1
+       AND a.date_time >= $2
+       AND a.status != 'cancelled'
+       ORDER BY a.date_time ASC`,
+      [req.user.id, currentDate]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    logger.error('Get upcoming appointments error:', error);
+    res.status(500).json({ message: 'Error fetching upcoming appointments' });
+  }
+});
+
+// Get client's past appointments
+router.get('/past', verifyToken, async (req, res) => {
+  try {
+    const currentDate = new Date().toISOString();
+    
+    const { rows } = await db.query(
+      `SELECT a.*, 
+              s.name as service_name, s.duration, s.price,
+              e.name as employee_name,
+              sal.name as salon_name, sal.id as salon_id
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       JOIN employees e ON a.employee_id = e.id
+       JOIN salons sal ON a.salon_id = sal.id
+       WHERE a.client_id = $1
+       AND (a.date_time < $2 OR a.status = 'completed' OR a.status = 'cancelled')
+       ORDER BY a.date_time DESC`,
+      [req.user.id, currentDate]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    logger.error('Get past appointments error:', error);
+    res.status(500).json({ message: 'Error fetching past appointments' });
+  }
+});
+
 // Create new appointment
 router.post('/', verifyToken, async (req, res) => {
   try {

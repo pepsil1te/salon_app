@@ -64,7 +64,7 @@ export const authApi = {
 
   // Logout
   logout: () => {
-    localStorage.removeItem('token');
+    localStorage.clear(); // Очищаем все данные из localStorage
     window.location.href = '/';
   },
 }; 

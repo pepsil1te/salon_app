@@ -371,33 +371,34 @@ router.get('/:id/services', cache(CACHE_TTL.MEDIUM), async (req, res) => {
     
     const salonId = employeeData[0].salon_id;
     
-    // Query to get all services for the salon
-    // Removing image_url which doesn't exist in the table
-    const { rows: salonServices } = await db.query(
+    // Query to get services assigned to the employee
+    const { rows: employeeServices } = await db.query(
       `SELECT 
-        id, 
-        name, 
-        description,
-        price, 
-        duration, 
-        category,
-        is_active
-      FROM services
-      WHERE salon_id = $1
-      ORDER BY name`,
-      [salonId]
+        s.id, 
+        s.name, 
+        s.description,
+        s.price, 
+        s.duration, 
+        s.category,
+        s.is_active
+      FROM services s
+      JOIN employee_services es ON s.id = es.service_id
+      WHERE es.employee_id = $1
+      AND s.salon_id = $2
+      ORDER BY s.name`,
+      [employeeId, salonId]
     );
     
     // Add the 'active' field for frontend compatibility
-    const servicesWithActive = salonServices.map(service => ({
+    const servicesWithActive = employeeServices.map(service => ({
       ...service,
       active: service.is_active
     }));
     
-    logger.info(`Получено ${salonServices.length} услуг салона для сотрудника #${employeeId}`);
+    logger.info(`Получено ${employeeServices.length} услуг для сотрудника #${employeeId}`);
     return res.json(servicesWithActive);
   } catch (error) {
-    logger.error('Error fetching employee services:', error);
+    logger.error('Error getting employee services:', error);
     res.status(500).json({ 
       message: 'Error fetching employee services', 
       error: error.message,
@@ -656,18 +657,36 @@ router.post('/',
   ]), 
   async (req, res) => {
   try {
-    const { name, role, contact_info, working_hours, salon_id, service_ids } = req.body;
+    const { first_name, last_name, role, position, contact_info, working_hours, salon_id, service_ids } = req.body;
+
+    // Проверка обязательных полей
+    if (!first_name || !last_name) {
+      return res.status(400).json({ 
+        message: 'First name and last name are required'
+      });
+    }
+
+    // Получаем роль из поля role или принимаем 'employee' по умолчанию
+    const employeeRole = role || 'employee';
 
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
 
-      // Insert employee
+      // Insert employee with separate first_name and last_name fields
       const { rows: [employee] } = await client.query(
-        `INSERT INTO employees (name, role, contact_info, working_hours, salon_id)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO employees (first_name, last_name, role, position, contact_info, working_hours, salon_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [name, role, contact_info, working_hours, salon_id]
+        [
+          first_name, 
+          last_name, 
+          employeeRole, 
+          position || '',
+          contact_info || {}, 
+          working_hours || {}, 
+          salon_id
+        ]
       );
 
       // Add service associations
@@ -719,13 +738,13 @@ router.put('/:id',
   try {
     // Извлекаем все поля из запроса
     const { 
-      name, first_name, last_name, role, position, contact_info, 
+      first_name, last_name, role, position, contact_info, 
       working_hours, is_active, service_ids, salon_id, photo_url 
     } = req.body;
 
     logger.info('Получен запрос на обновление сотрудника:', { 
       id: req.params.id,
-      name, first_name, last_name, 
+      first_name, last_name, 
       role, position, 
       contact_info: JSON.stringify(contact_info),
       working_hours_keys: working_hours ? Object.keys(working_hours) : null,
@@ -734,20 +753,12 @@ router.put('/:id',
       salon_id
     });
 
-    // Убедимся, что у нас есть имя для обновления
-    // Если передано как name, используем его, иначе составляем из first_name и last_name
-    const employeeName = name || (first_name && last_name ? `${first_name} ${last_name}` : null);
-    
     // Проверяем, что имя не пустое
-    if (!employeeName) {
+    if (!first_name || !last_name) {
       return res.status(400).json({ 
-        message: 'Name is required for employee update', 
-        details: 'Provide either "name" field or both "first_name" and "last_name" fields'
+        message: 'First name and last name are required for employee update'
       });
     }
-    
-    // Проверяем наличие контактной информации
-    const employeeContactInfo = contact_info || {};
     
     // Получаем роль из поля role или принимаем 'employee' по умолчанию
     const employeeRole = role || 'employee';  // Разрешаем только роли из enum
@@ -769,8 +780,8 @@ router.put('/:id',
     logger.debug('Текущие рабочие часы сотрудника:', currentEmployeeData[0].working_hours);
     
     // Логируем информацию о запросе
-    logger.info(`Updating employee #${req.params.id} with name: ${employeeName}, role: ${employeeRole}, position: ${employeePosition}`);
-    logger.debug('Contact info:', employeeContactInfo);
+    logger.info(`Updating employee #${req.params.id} with name: ${first_name} ${last_name}, role: ${employeeRole}, position: ${employeePosition}`);
+    logger.debug('Contact info:', contact_info);
 
     const client = await db.getClient();
     try {
@@ -779,23 +790,25 @@ router.put('/:id',
       // Включаем position как отдельное поле при обновлении
       const updateQuery = `
         UPDATE employees
-        SET name = $1, 
-            role = $2, 
-            position = $3,
-            contact_info = $4, 
-            working_hours = $5, 
-            is_active = $6,
-            ${photo_url ? 'photo_url = $8,' : ''}
+        SET first_name = $1, 
+            last_name = $2, 
+            role = $3, 
+            position = $4,
+            contact_info = $5, 
+            working_hours = $6, 
+            is_active = $7,
+            ${photo_url ? 'photo_url = $9,' : ''}
             updated_at = NOW()
-        WHERE id = $7
+        WHERE id = $8
         RETURNING *
       `;
       
       const queryParams = [
-        employeeName, 
+        first_name, 
+        last_name, 
         employeeRole, 
         employeePosition,
-        employeeContactInfo, 
+        contact_info || currentEmployeeData[0].contact_info, 
         working_hours || currentEmployeeData[0].working_hours, 
         is_active !== undefined ? is_active : currentEmployeeData[0].is_active, 
         req.params.id
@@ -810,14 +823,15 @@ router.put('/:id',
         photo_url 
           ? updateQuery 
           : `UPDATE employees
-             SET name = $1, 
-                 role = $2, 
-                 position = $3,
-                 contact_info = $4, 
-                 working_hours = $5, 
-                 is_active = $6,
+             SET first_name = $1, 
+                 last_name = $2, 
+                 role = $3, 
+                 position = $4,
+                 contact_info = $5, 
+                 working_hours = $6, 
+                 is_active = $7,
                  updated_at = NOW()
-             WHERE id = $7
+             WHERE id = $8
              RETURNING *`,
         queryParams
       );
@@ -1032,6 +1046,68 @@ router.put('/:id/schedule', verifyToken, async (req, res) => {
     logger.error('Error updating employee schedule:', error);
     res.status(500).json({ 
       message: 'Error updating employee schedule', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Remove service from employee
+router.delete('/:id/services/:serviceId', 
+  verifyToken, 
+  checkRole('admin', 'employee'), 
+  checkSalonAccess,
+  invalidate([
+    (req) => `/employees/${req.params.id}/services`,
+    (req) => `/employees/${req.params.id}`
+  ]),
+  async (req, res) => {
+  try {
+    const employeeId = req.params.id;
+    const serviceId = req.params.serviceId;
+    
+    // First check if the employee exists
+    const { rows: employeeData } = await db.query(
+      'SELECT id, salon_id FROM employees WHERE id = $1',
+      [employeeId]
+    );
+    
+    if (employeeData.length === 0) {
+      return res.status(404).json({ 
+        message: 'Employee not found' 
+      });
+    }
+    
+    // Check if the service exists and belongs to the same salon
+    const { rows: serviceData } = await db.query(
+      'SELECT id FROM services WHERE id = $1 AND salon_id = $2',
+      [serviceId, employeeData[0].salon_id]
+    );
+    
+    if (serviceData.length === 0) {
+      return res.status(404).json({ 
+        message: 'Service not found or does not belong to the same salon' 
+      });
+    }
+    
+    // Delete the service association
+    const { rowCount } = await db.query(
+      'DELETE FROM employee_services WHERE employee_id = $1 AND service_id = $2',
+      [employeeId, serviceId]
+    );
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ 
+        message: 'Service is not assigned to this employee' 
+      });
+    }
+    
+    logger.info(`Услуга #${serviceId} удалена у сотрудника #${employeeId}`);
+    res.status(204).send();
+  } catch (error) {
+    logger.error('Error removing service from employee:', error);
+    res.status(500).json({ 
+      message: 'Error removing service from employee', 
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });

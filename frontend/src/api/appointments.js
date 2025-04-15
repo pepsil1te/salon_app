@@ -1,4 +1,5 @@
 import api from './client';
+import { format, addDays } from 'date-fns';
 
 /**
  * API сервис для управления записями на услуги
@@ -29,7 +30,7 @@ export const appointmentApi = {
    * @returns {Promise<Array>} Список записей пользователя
    */
   getUserAppointments: async (userId) => {
-    const { data } = await api.get(`/appointments/client`);
+    const { data } = await api.get(`/users/${userId}/appointments`);
     return data;
   },
 
@@ -120,5 +121,23 @@ export const appointmentApi = {
    */
   delete: async (id) => {
     await api.delete(`/appointments/${id}`);
+  },
+
+  /**
+   * Получить предстоящие записи
+   * @returns {Promise<Array>} Список предстоящих записей
+   */
+  getUpcoming: async () => {
+    const response = await api.get('/appointments/upcoming');
+    return response.data;
+  },
+
+  /**
+   * Получить прошедшие записи
+   * @returns {Promise<Array>} Список прошедших записей
+   */
+  getPast: async () => {
+    const response = await api.get('/appointments/past');
+    return response.data;
   }
 }; 

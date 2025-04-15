@@ -22,11 +22,13 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SearchIcon from '@mui/icons-material/Search';
 import SortIcon from '@mui/icons-material/Sort';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 const SalonList = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredSalons, setFilteredSalons] = useState([]);
+  const { user } = useAuthContext();
 
   // Загрузка списка салонов - настраиваем с фиксированным ключом и отключаем авто-рефетчинг
   const { data: salons, isLoading, error } = useQuery(
@@ -54,6 +56,24 @@ const SalonList = () => {
   // Переход на страницу салона
   const handleViewSalon = (salonId) => {
     navigate(`/salon/${salonId}`);
+  };
+  
+  // Обработчик для кнопки "Записаться"
+  const handleBookAppointment = (salonId) => {
+    // Если пользователь не авторизован, перенаправляем на страницу входа
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    // Проверяем, является ли пользователь клиентом
+    if (user.role === 'client') {
+      // Перенаправляем на страницу салона для бронирования
+      navigate(`/salon/${salonId}`);
+    } else {
+      // Если пользователь авторизован, но не как клиент
+      alert('Для записи на услугу вам необходимо войти как клиент. Текущая роль: ' + user.role);
+    }
   };
 
   // Получение дней работы в текстовом формате
@@ -97,11 +117,8 @@ const SalonList = () => {
     );
   }
 
-  // Используем тестовые данные, если API не вернуло результаты
-  const displaySalons = filteredSalons.length > 0 ? filteredSalons : (
-    // Если API недоступно, показываем пустой массив вместо тестовых данных
-    []
-  );
+  // Используем отфильтрованные салоны для отображения
+  const displaySalons = filteredSalons;
 
   return (
     <Box sx={{ mb: 4 }}>
@@ -134,10 +151,10 @@ const SalonList = () => {
           Салоны не найдены
         </Typography>
       ) : (
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           {displaySalons.map((salon) => (
-            <Grid item xs={12} key={salon.id}>
-              <Card>
+            <Grid item xs={12} sm={6} md={4} key={salon.id}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent>
                   <Typography variant="h6" component="div">
                     {salon.name}
@@ -179,7 +196,7 @@ const SalonList = () => {
                     variant="contained" 
                     size="small" 
                     color="primary" 
-                    onClick={() => navigate(`/salon/${salon.id}/book`)}
+                    onClick={() => handleBookAppointment(salon.id)}
                     sx={{ ml: 'auto' }}
                   >
                     Записаться

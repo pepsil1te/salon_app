@@ -135,99 +135,46 @@ const EmployeePerformance = () => {
     setEndDate(customEndDate);
   };
 
-  // Получение данных о производительности сотрудника
-  const {
-    data: performance,
-    isLoading,
-    error,
-    refetch
-  } = useQuery(
-    ['employeePerformance', user?.id, format(startDate, 'yyyy-MM-dd'), format(endDate, 'yyyy-MM-dd')],
-    () => employeeApi.getPerformance(
-      user.id,
-      format(startDate, 'yyyy-MM-dd'),
-      format(endDate, 'yyyy-MM-dd')
-    ),
+  // Get performance data
+  const { data: performanceData, isLoading, error, refetch } = useQuery(
+    ['employeePerformance', user?.id, { start: startDate, end: endDate }],
+    () => {
+      if (!user?.id) {
+        throw new Error('ID сотрудника не найден');
+      }
+      return employeeApi.getPerformance(
+        user.id,
+        format(startDate, 'yyyy-MM-dd'),
+        format(endDate, 'yyyy-MM-dd')
+      );
+    },
     {
       enabled: !!user?.id,
-      staleTime: 5 * 60 * 1000, // 5 минут
+      onError: (error) => {
+        console.error('Ошибка при загрузке статистики:', error);
+      }
     }
   );
 
-  // Тестовые данные для производительности, если API не вернуло результаты
-  const mockPerformance = {
-    employee_id: user?.id || 1,
-    period: {
-      start_date: format(startDate, 'yyyy-MM-dd'),
-      end_date: format(endDate, 'yyyy-MM-dd'),
-    },
-    appointments: {
-      total: 45,
-      completed: 42,
-      cancelled: 3,
-      revenue: 75000,
-      average_rating: 4.8,
-      services_by_category: [
-        { category: 'Волосы', count: 28, revenue: 45000 },
-        { category: 'Ногти', count: 12, revenue: 20000 },
-        { category: 'Макияж', count: 5, revenue: 10000 }
-      ],
-      clients: {
-        total: 35,
-        new: 8,
-        returning: 27
-      }
-    },
-    working_hours: {
-      scheduled: 160,
-      actual: 155,
-      utilization_rate: 0.85
-    },
-    ratings: [
-      { rating: 5, count: 35 },
-      { rating: 4, count: 5 },
-      { rating: 3, count: 2 },
-      { rating: 2, count: 0 },
-      { rating: 1, count: 0 }
-    ],
-    top_services: [
-      { name: 'Женская стрижка', count: 20, revenue: 30000 },
-      { name: 'Окрашивание', count: 8, revenue: 15000 },
-      { name: 'Маникюр', count: 12, revenue: 20000 }
-    ],
-    appointments_by_date: [
-      { date: format(subDays(new Date(), 10), 'yyyy-MM-dd'), count: 3 },
-      { date: format(subDays(new Date(), 9), 'yyyy-MM-dd'), count: 5 },
-      { date: format(subDays(new Date(), 8), 'yyyy-MM-dd'), count: 2 },
-      { date: format(subDays(new Date(), 7), 'yyyy-MM-dd'), count: 4 },
-      { date: format(subDays(new Date(), 6), 'yyyy-MM-dd'), count: 3 },
-      { date: format(subDays(new Date(), 5), 'yyyy-MM-dd'), count: 0 },
-      { date: format(subDays(new Date(), 4), 'yyyy-MM-dd'), count: 0 },
-      { date: format(subDays(new Date(), 3), 'yyyy-MM-dd'), count: 6 },
-      { date: format(subDays(new Date(), 2), 'yyyy-MM-dd'), count: 4 },
-      { date: format(subDays(new Date(), 1), 'yyyy-MM-dd'), count: 3 }
-    ]
+  // Заменяем моковые данные на пустые объекты/значения
+  const defaultEmptyPerformance = {
+    total_appointments: 0,
+    completed_appointments: 0,
+    cancelled_appointments: 0,
+    revenue: 0,
+    average_rating: 0,
+    services_performed: 0,
+    appointments_by_day: {},
+    revenue_by_day: {},
+    most_popular_services: []
   };
 
-  // Используем тестовые данные, если API не вернуло результаты
-  const displayPerformance = performance || mockPerformance || {
-    appointments: {
-      total: 0,
-      completed: 0,
-      cancelled: 0,
-      revenue: 0,
-      average_rating: 0,
-      services_by_category: [],
-      clients: { total: 0, new: 0, returning: 0 }
-    },
-    working_hours: { scheduled: 0, actual: 0, utilization_rate: 0 },
-    ratings: [],
-    top_services: []
-  };
+  // Используем только данные из API
+  const displayPerformance = performanceData || defaultEmptyPerformance;
 
   // Расчет процента выполненных записей
-  const completionRate = displayPerformance?.appointments?.total > 0
-    ? Math.round((displayPerformance?.appointments?.completed / displayPerformance?.appointments?.total) * 100)
+  const completionRate = displayPerformance?.total_appointments > 0
+    ? Math.round((displayPerformance?.completed_appointments / displayPerformance?.total_appointments) * 100)
     : 0;
 
   if (isLoading) {
@@ -331,7 +278,7 @@ const EmployeePerformance = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
             title="Всего записей"
-            value={displayPerformance?.appointments?.total || 0}
+            value={displayPerformance?.total_appointments || 0}
             icon={<EqualizerIcon sx={{ color: 'primary.main' }} />}
             color="primary"
             subtitle={`Выполнено: ${completionRate}%`}
@@ -340,7 +287,7 @@ const EmployeePerformance = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
             title="Выручка"
-            value={`${(displayPerformance?.appointments?.revenue || 0).toLocaleString()} ₽`}
+            value={`${(displayPerformance?.revenue || 0).toLocaleString()} ₽`}
             icon={<AttachMoneyIcon sx={{ color: 'success.main' }} />}
             color="success"
           />
@@ -348,16 +295,16 @@ const EmployeePerformance = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
             title="Клиентов"
-            value={displayPerformance?.appointments?.clients?.total || 0}
+            value={displayPerformance?.services_performed || 0}
             icon={<PeopleIcon sx={{ color: 'info.main' }} />}
             color="info"
-            subtitle={`Новых: ${displayPerformance?.appointments?.clients?.new || 0}`}
+            subtitle={`Услуг: ${displayPerformance?.services_performed || 0}`}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard 
             title="Средний рейтинг"
-            value={(displayPerformance?.appointments?.average_rating || 0).toFixed(1)}
+            value={(displayPerformance?.average_rating || 0).toFixed(1)}
             icon={<StarIcon sx={{ color: 'warning.main' }} />}
             color="warning"
             subtitle={`На основе ${(displayPerformance?.ratings || []).reduce((acc, curr) => acc + (curr?.count || 0), 0)} отзывов`}
@@ -374,8 +321,8 @@ const EmployeePerformance = () => {
                 Топ услуг
               </Typography>
               <List>
-                {(displayPerformance?.top_services || []).map((service, index) => (
-                  <ListItem key={index} divider={index < (displayPerformance?.top_services?.length || 0) - 1}>
+                {(displayPerformance?.most_popular_services || []).map((service, index) => (
+                  <ListItem key={index} divider={index < (displayPerformance?.most_popular_services?.length || 0) - 1}>
                     <ListItemIcon>
                       <ThumbUpIcon color="primary" />
                     </ListItemIcon>
@@ -384,7 +331,7 @@ const EmployeePerformance = () => {
                       secondary={`${service?.count || 0} записей • ${(service?.revenue || 0).toLocaleString()} ₽`} 
                     />
                     <Chip 
-                      label={`${Math.round(((service?.count || 0) / (displayPerformance?.appointments?.total || 1)) * 100)}%`} 
+                      label={`${Math.round(((service?.count || 0) / (displayPerformance?.total_appointments || 1)) * 100)}%`} 
                       color="primary" 
                       size="small" 
                     />
@@ -402,14 +349,14 @@ const EmployeePerformance = () => {
                 Услуги по категориям
               </Typography>
               <List>
-                {(displayPerformance?.appointments?.services_by_category || []).map((category, index) => (
-                  <ListItem key={index} divider={index < (displayPerformance?.appointments?.services_by_category?.length || 0) - 1}>
+                {(displayPerformance?.services_by_category || []).map((category, index) => (
+                  <ListItem key={index} divider={index < (displayPerformance?.services_by_category?.length || 0) - 1}>
                     <ListItemText 
                       primary={category?.category || 'Неизвестная категория'} 
                       secondary={`${category?.count || 0} записей • ${(category?.revenue || 0).toLocaleString()} ₽`} 
                     />
                     <Chip 
-                      label={`${Math.round(((category?.count || 0) / (displayPerformance?.appointments?.total || 1)) * 100)}%`} 
+                      label={`${Math.round(((category?.count || 0) / (displayPerformance?.total_appointments || 1)) * 100)}%`} 
                       color="primary" 
                       size="small" 
                     />
@@ -471,7 +418,7 @@ const EmployeePerformance = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <CheckCircleIcon color="success" sx={{ mr: 1 }} />
                       <Typography variant="h5">
-                        {displayPerformance?.appointments?.completed || 0}
+                        {displayPerformance?.completed_appointments || 0}
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary">
@@ -484,7 +431,7 @@ const EmployeePerformance = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <CancelIcon color="error" sx={{ mr: 1 }} />
                       <Typography variant="h5">
-                        {displayPerformance?.appointments?.cancelled || 0}
+                        {displayPerformance?.cancelled_appointments || 0}
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary">

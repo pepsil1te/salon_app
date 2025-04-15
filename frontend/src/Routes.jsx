@@ -12,8 +12,8 @@ import AppointmentList from './components/appointments/AppointmentList';
 import NotFound from './components/common/NotFound';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import EmployeeAppointments from './components/employee/EmployeeAppointments';
-import EmployeeSchedule from './components/employee/EmployeeSchedule';
-import EmployeeServices from './components/employee/EmployeeServices';
+import EmployeeSchedule from './components/employee/EmployeeSchedule.tsx';
+import EmployeeServices from './components/employee/EmployeeServices.tsx';
 import EmployeePerformance from './components/employee/EmployeePerformance';
 import PublicLayout from './layouts/PublicLayout';
 
@@ -62,10 +62,24 @@ const AppRoutes = () => {
       {/* Общедоступные маршруты */}
       <Route path="/login" element={<Login />} />
 
+      {/* Прямой маршрут для бронирования */}
+      <Route 
+        path="/booking/:salonId/service/:serviceId" 
+        element={
+          <ProtectedRoute
+            isAllowed={!!user && user.role === 'client'}
+            redirectPath="/login"
+          >
+            <BookingForm />
+          </ProtectedRoute>
+        } 
+      />
+
       {/* Общедоступная страница салонов */}
       <Route path="/" element={<PublicLayout />}>
         <Route index element={<SalonList />} />
         <Route path="salon/:salonId" element={<SalonDetails />} />
+        <Route path="salon/:salonId/service/:serviceId/booking" element={<BookingForm />} />
         <Route path="salon/:salonId/book" element={<Login />} />
         <Route path="salon/:salonId/service/:serviceId/book" element={<Login />} />
       </Route>

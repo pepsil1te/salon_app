@@ -25,7 +25,9 @@ import {
   ListItemText,
   Alert,
   Chip,
-  Avatar
+  Avatar,
+  Rating,
+  Tooltip
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from 'react-query';
@@ -51,6 +53,39 @@ const BookingForm = () => {
   const { salonId, serviceId } = useParams();
   const navigate = useNavigate();
   const { user, isLoading: isLoadingAuth } = useAuthContext();
+  
+  // Отладка: проверяем параметры URL и пользователя
+  console.log('🔍 BookingForm загружен:', { 
+    salonId, 
+    serviceId,
+    user, 
+    pathname: window.location.pathname
+  });
+  
+  // Если пользователь не авторизован или не является клиентом, перенаправляем на страницу входа
+  useEffect(() => {
+    if (!isLoadingAuth && (!user || user.role !== 'client')) {
+      console.log('⚠️ Доступ запрещен, перенаправление на страницу входа');
+      navigate('/login');
+    }
+  }, [user, isLoadingAuth, navigate]);
+  
+  // Если идет загрузка данных пользователя, показываем индикатор загрузки
+  if (isLoadingAuth) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+        <Typography variant="body1" sx={{ ml: 2 }}>
+          Проверка авторизации...
+        </Typography>
+      </Box>
+    );
+  }
+  
+  // Если пользователь не авторизован или не клиент, не отображаем содержимое
+  if (!user || user.role !== 'client') {
+    return null; // Будет перенаправлено в useEffect
+  }
   
   const [activeStep, setActiveStep] = useState(0);
   const [selectedDate, setSelectedDate] = useState(addDays(new Date(), 1));
@@ -160,7 +195,15 @@ const BookingForm = () => {
 
   // Обработчик завершения бронирования
   const handleFinish = () => {
-    navigate('/appointments');
+    // Направляем пользователя на страницу с его записями в клиентском приложении
+    console.log('✅ Перенаправление после бронирования');
+    
+    if (user && user.role === 'client') {
+      navigate('/client/appointments');
+    } else {
+      // Если по какой-то причине пользователь больше не авторизован как клиент
+      navigate('/');
+    }
   };
 
   // Используем тестовые данные для услуги, если API не вернуло результаты
@@ -327,13 +370,112 @@ const BookingForm = () => {
                               dateAdapter={AdapterDateFns}
                               adapterLocale={ruLocale}
                             >
-                              <DatePicker 
-                                label="Выберите дату"
-                                value={selectedDate}
-                                onChange={setSelectedDate}
-                                disablePast
-                                renderInput={(params) => <TextField {...params} fullWidth />}
-                              />
+                              <Box sx={{ mb: 2 }}>
+                                <DatePicker 
+                                  label="Выберите дату"
+                                  value={selectedDate}
+                                  onChange={setSelectedDate}
+                                  disablePast
+                                  renderInput={(params) => <TextField {...params} fullWidth />}
+                                />
+                              </Box>
+                              
+                              {/* Отображение следующих 7 дней для быстрого выбора */}
+                              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                Быстрый выбор даты:
+                              </Typography>
+                              <Box 
+                                sx={{ 
+                                  display: 'flex', 
+                                  gap: 1,
+                                  flexWrap: 'wrap',
+                                  justifyContent: 'center' 
+                                }}
+                              >
+                                {Array.from({ length: 7 }, (_, i) => {
+                                  const date = addDays(new Date(), i + 1);
+                                  const isSelected = selectedDate && isSameDay(date, selectedDate);
+                                  
+                                  // Определяем загруженность дня (пример логики)
+                                  const dayOfWeek = date.getDay();
+                                  let busyness = 'low'; // low, medium, high
+                                  if (dayOfWeek === 0 || dayOfWeek === 6) {
+                                    busyness = 'high'; // выходные загружены сильнее
+                                  } else if (dayOfWeek === 5) {
+                                    busyness = 'medium'; // пятница загружена средне
+                                  }
+                                  
+                                  // Определяем цвет индикатора загруженности
+                                  const busynessColor = {
+                                    low: 'success.main',
+                                    medium: 'warning.main',
+                                    high: 'error.main'
+                                  }[busyness];
+                                  
+                                  // Определяем текст подсказки
+                                  const busynessText = {
+                                    low: 'Свободно',
+                                    medium: 'Средняя загруженность',
+                                    high: 'Высокая загруженность'
+                                  }[busyness];
+                                  
+                                  return (
+                                    <Paper
+                                      key={i}
+                                      elevation={isSelected ? 3 : 1}
+                                      sx={{
+                                        p: 1,
+                                        width: { xs: 'calc(25% - 8px)', sm: 'calc(14.28% - 8px)' },
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        border: isSelected ? '2px solid' : '1px solid',
+                                        borderColor: isSelected ? 'primary.main' : 'divider',
+                                        bgcolor: isSelected ? 'primary.lighter' : 'background.paper',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                          borderColor: 'primary.main',
+                                          bgcolor: 'primary.lighter',
+                                          transform: 'translateY(-2px)'
+                                        }
+                                      }}
+                                      onClick={() => setSelectedDate(date)}
+                                    >
+                                      <Typography 
+                                        variant="caption" 
+                                        sx={{ fontWeight: 500, textTransform: 'uppercase' }}
+                                      >
+                                        {format(date, 'EEE', { locale: ruLocale })}
+                                      </Typography>
+                                      <Typography 
+                                        variant="h6" 
+                                        sx={{ 
+                                          fontWeight: isSelected ? 600 : 400,
+                                          color: isSelected ? 'primary.main' : 'text.primary'
+                                        }}
+                                      >
+                                        {format(date, 'd')}
+                                      </Typography>
+                                      <Typography variant="caption">
+                                        {format(date, 'MMM', { locale: ruLocale })}
+                                      </Typography>
+                                      <Tooltip title={busynessText}>
+                                        <Box 
+                                          sx={{ 
+                                            mt: 0.5, 
+                                            width: '50%', 
+                                            height: 3, 
+                                            borderRadius: 3,
+                                            bgcolor: busynessColor 
+                                          }} 
+                                        />
+                                      </Tooltip>
+                                    </Paper>
+                                  );
+                                })}
+                              </Box>
                             </LocalizationProvider>
                           </Box>
                         )}
@@ -351,30 +493,63 @@ const BookingForm = () => {
                                 К сожалению, нет доступных мастеров для этой услуги
                               </Alert>
                             ) : (
-                              <FormControl component="fieldset">
-                                <FormLabel component="legend">Выберите мастера</FormLabel>
-                                <RadioGroup
-                                  value={selectedEmployee?.id || ''}
-                                  onChange={(e) => {
-                                    const empId = parseInt(e.target.value);
-                                    setSelectedEmployee(employeeList.find(emp => emp.id === empId));
-                                  }}
-                                >
-                                  {employeeList.map((employee) => (
-                                    <FormControlLabel
-                                      key={employee.id}
-                                      value={employee.id}
-                                      control={<Radio />}
-                                      label={
-                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                          <Avatar sx={{ mr: 1 }}>{employee.name[0]}</Avatar>
-                                          {employee.name}
-                                        </Box>
-                                      }
-                                    />
-                                  ))}
-                                </RadioGroup>
-                              </FormControl>
+                              <Box>
+                                <FormControl component="fieldset" fullWidth>
+                                  <FormLabel component="legend">Выберите мастера</FormLabel>
+                                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                                    {employeeList.map((employee) => (
+                                      <Grid item xs={12} sm={6} md={4} key={employee.id}>
+                                        <Paper 
+                                          elevation={selectedEmployee?.id === employee.id ? 3 : 1} 
+                                          sx={{ 
+                                            p: 2, 
+                                            cursor: 'pointer',
+                                            border: selectedEmployee?.id === employee.id ? '2px solid' : '1px solid',
+                                            borderColor: selectedEmployee?.id === employee.id ? 'primary.main' : 'divider',
+                                            bgcolor: selectedEmployee?.id === employee.id ? 'primary.lighter' : 'background.paper',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                              borderColor: 'primary.main',
+                                              bgcolor: 'primary.lighter',
+                                              transform: 'translateY(-2px)'
+                                            }
+                                          }}
+                                          onClick={() => setSelectedEmployee(employee)}
+                                        >
+                                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <Avatar 
+                                              sx={{ 
+                                                width: 60, 
+                                                height: 60, 
+                                                mr: 2,
+                                                bgcolor: selectedEmployee?.id === employee.id ? 'primary.main' : 'grey.400'
+                                              }}
+                                            >
+                                              {employee.name[0]}
+                                            </Avatar>
+                                            <Box>
+                                              <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
+                                                {employee.name}
+                                              </Typography>
+                                              <Typography variant="body2" color="text.secondary">
+                                                Стаж работы: {employee.experience || "2 года"}
+                                              </Typography>
+                                              {employee.rating && (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                                  <Rating value={employee.rating} precision={0.5} size="small" readOnly />
+                                                  <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                                                    ({employee.reviews_count || 12})
+                                                  </Typography>
+                                                </Box>
+                                              )}
+                                            </Box>
+                                          </Box>
+                                        </Paper>
+                                      </Grid>
+                                    ))}
+                                  </Grid>
+                                </FormControl>
+                              </Box>
                             )}
                           </Box>
                         )}
@@ -394,23 +569,45 @@ const BookingForm = () => {
                             ) : (
                               <Box>
                                 <Typography variant="subtitle2" gutterBottom>
-                                  Доступное время:
+                                  Доступное время: {format(selectedDate, 'dd.MM.yyyy (EEEE)', { locale: ruLocale })}
                                 </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-                                  {availableSlots.map((slot, idx) => (
-                                    <Chip
-                                      key={idx}
-                                      label={format(new Date(slot), 'HH:mm')}
-                                      onClick={() => setSelectedTime(slot)}
-                                      color={selectedTime && isSameDay(new Date(selectedTime), new Date(slot)) && 
-                                             format(new Date(selectedTime), 'HH:mm') === format(new Date(slot), 'HH:mm') 
-                                             ? 'primary' : 'default'}
-                                      variant={selectedTime && isSameDay(new Date(selectedTime), new Date(slot)) && 
-                                             format(new Date(selectedTime), 'HH:mm') === format(new Date(slot), 'HH:mm')  
-                                             ? 'filled' : 'outlined'}
-                                    />
-                                  ))}
-                                </Box>
+                                <Grid container spacing={1} sx={{ mt: 1 }}>
+                                  {availableSlots.map((slot, idx) => {
+                                    const isSelected = selectedTime && 
+                                                      isSameDay(new Date(selectedTime), new Date(slot)) && 
+                                                      format(new Date(selectedTime), 'HH:mm') === format(new Date(slot), 'HH:mm');
+                                    return (
+                                      <Grid item xs={4} sm={3} md={2} key={idx}>
+                                        <Paper 
+                                          elevation={isSelected ? 3 : 1}
+                                          sx={{ 
+                                            p: 1.5, 
+                                            textAlign: 'center',
+                                            cursor: 'pointer',
+                                            border: isSelected ? '2px solid' : '1px solid',
+                                            borderColor: isSelected ? 'primary.main' : 'divider',
+                                            bgcolor: isSelected ? 'primary.lighter' : 'background.paper',
+                                            transition: 'all 0.2s',
+                                            '&:hover': {
+                                              borderColor: 'primary.main',
+                                              bgcolor: 'primary.lighter'
+                                            }
+                                          }}
+                                          onClick={() => setSelectedTime(slot)}
+                                        >
+                                          <Typography 
+                                            variant="subtitle1" 
+                                            component="div"
+                                            color={isSelected ? 'primary.main' : 'text.primary'}
+                                            sx={{ fontWeight: isSelected ? 600 : 400 }}
+                                          >
+                                            {format(new Date(slot), 'HH:mm')}
+                                          </Typography>
+                                        </Paper>
+                                      </Grid>
+                                    );
+                                  })}
+                                </Grid>
                               </Box>
                             )}
                           </Box>

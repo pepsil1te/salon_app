@@ -23,7 +23,8 @@ import {
   Grid,
   Card,
   CardContent,
-  Avatar
+  Avatar,
+  Skeleton
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { appointmentApi } from '../../api/appointments';
@@ -202,76 +203,29 @@ const EmployeeAppointments = () => {
     }).sort((a, b) => parseISO(a.date_time) - parseISO(b.date_time));
   };
 
-  // Тестовые данные, если API не вернуло результаты
-  const mockAppointments = [
-    {
-      id: 1,
-      client_id: 1,
-      client_name: 'Анна Смирнова',
-      service_id: 1,
-      service_name: 'Женская стрижка',
-      salon_id: 1,
-      salon_name: 'Салон красоты "Элегант"',
-      salon_address: 'ул. Пушкина, д. 10',
-      employee_id: user?.id || 1,
-      date_time: format(addDays(new Date(), 0), "yyyy-MM-dd'T'13:00:00'Z'"),
-      duration: 60,
-      price: 1500,
-      status: 'pending',
-      notes: 'Постоянный клиент',
-      client_contact: '+7 (999) 123-45-67'
-    },
-    {
-      id: 2,
-      client_id: 2,
-      client_name: 'Ольга Петрова',
-      service_id: 2,
-      service_name: 'Маникюр',
-      salon_id: 1,
-      salon_name: 'Салон красоты "Элегант"',
-      salon_address: 'ул. Пушкина, д. 10',
-      employee_id: user?.id || 1,
-      date_time: format(addDays(new Date(), 0), "yyyy-MM-dd'T'15:00:00'Z'"),
-      duration: 45,
-      price: 800,
-      status: 'completed',
-      notes: 'Клиент предпочитает светлые тона',
-      client_contact: '+7 (999) 987-65-43'
-    },
-    {
-      id: 3,
-      client_id: 3,
-      client_name: 'Иван Иванов',
-      service_id: 3,
-      service_name: 'Мужская стрижка',
-      salon_id: 1,
-      salon_name: 'Салон красоты "Элегант"',
-      salon_address: 'ул. Пушкина, д. 10',
-      employee_id: user?.id || 1,
-      date_time: format(addDays(new Date(), 0), "yyyy-MM-dd'T'17:00:00'Z'"),
-      duration: 30,
-      price: 1000,
-      status: 'cancelled',
-      notes: '',
-      cancel_reason: 'Клиент не смог прийти',
-      client_contact: '+7 (999) 555-55-55'
-    }
-  ];
-
-  const displayAppointments = appointments || mockAppointments;
+  // Удаляем моковые данные и используем только реальные данные из API
   const filteredAppointments = getFilteredAppointments();
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <CircularProgress />
+      <Box sx={{ width: '100%' }}>
+        <Skeleton variant="rectangular" height={100} sx={{ mb: 2 }} />
+        <Skeleton variant="rectangular" height={400} />
       </Box>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mt: 2 }}>
+      <Alert 
+        severity="error" 
+        sx={{ mt: 2 }}
+        action={
+          <Button color="inherit" size="small" onClick={refetch}>
+            Повторить
+          </Button>
+        }
+      >
         Ошибка при загрузке записей: {error.message}
       </Alert>
     );
@@ -378,13 +332,24 @@ const EmployeeAppointments = () => {
             </Tabs>
           </Paper>
 
-          {filteredAppointments.length === 0 ? (
-            <Paper sx={{ p: 3, textAlign: 'center' }}>
-              <Typography variant="body1" color="text.secondary">
-                Нет записей для отображения
+          {filteredAppointments.length === 0 && (
+            <Paper sx={{ p: 3, textAlign: 'center', mt: 2 }}>
+              <Typography variant="h6" color="text.secondary">
+                Записи не найдены
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {tabValue === 0 
+                  ? "На выбранный день нет записей"
+                  : tabValue === 1 
+                    ? "Нет текущих записей"
+                    : tabValue === 2 
+                      ? "Нет завершенных записей"
+                      : "Нет отмененных записей"}
               </Typography>
             </Paper>
-          ) : (
+          )}
+
+          {filteredAppointments.length > 0 && (
             <List>
               {filteredAppointments.map((appointment) => {
                 const appointmentDate = parseISO(appointment.date_time);

@@ -71,11 +71,37 @@ async function addColumns() {
       logger.info('Колонка description уже существует');
     }
     
+    // Проверяем наличие колонки is_active
+    const hasIsActiveColumn = await client.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'salons' AND column_name = 'is_active'
+      )
+    `);
+    
+    if (!hasIsActiveColumn.rows[0].exists) {
+      logger.info('Добавление колонки is_active...');
+      await client.query(`
+        ALTER TABLE salons 
+        ADD COLUMN is_active BOOLEAN DEFAULT true
+      `);
+      logger.info('Колонка is_active успешно добавлена');
+    } else {
+      logger.info('Колонка is_active уже существует');
+    }
+    
     // Обновляем status для всех салонов где он NULL
     await client.query(`
       UPDATE salons 
       SET status = 'active' 
       WHERE status IS NULL
+    `);
+    
+    // Обновляем is_active для всех салонов где он NULL
+    await client.query(`
+      UPDATE salons 
+      SET is_active = true 
+      WHERE is_active IS NULL
     `);
     
     await client.query('COMMIT');

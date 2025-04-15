@@ -19,9 +19,10 @@ const PublicLayout = () => {
           py: 3,
           px: 2,
           mt: 'auto',
-          backgroundColor: (theme) => theme.palette.grey[100],
-          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-          textAlign: 'center'
+          textAlign: 'center',
+          bgcolor: 'background.paper',
+          borderTop: '1px solid',
+          borderColor: 'divider'
         }}
       >
         &copy; {new Date().getFullYear()} Beauty Salon. Все права защищены.

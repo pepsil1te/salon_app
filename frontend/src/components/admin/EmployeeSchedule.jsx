@@ -32,7 +32,16 @@ import {
   Switch,
   Select,
   MenuItem,
-  InputLabel
+  InputLabel,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Tooltip,
+  useMediaQuery,
+  useTheme,
+  Avatar,
+  Menu
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { employeeApi } from '../../api/employees';
@@ -40,16 +49,25 @@ import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, getDay, par
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import ruLocale from 'date-fns/locale/ru';
+import { ru } from 'date-fns/locale';
 import SaveIcon from '@mui/icons-material/Save';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import EditIcon from '@mui/icons-material/Edit';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PersonIcon from '@mui/icons-material/Person';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import { Slider } from '@mui/material';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 // Компонент расписания сотрудника для админ-панели
 const EmployeeSchedule = ({ employeeId, onClose }) => {
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   const [employeeInfo, setEmployeeInfo] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -64,6 +82,9 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
   const [timeOffDialogOpen, setTimeOffDialogOpen] = useState(false);
   const [selectedDayForTimeOff, setSelectedDayForTimeOff] = useState(null);
   const [timeOffReason, setTimeOffReason] = useState('');
+  const [copyMenuAnchor, setCopyMenuAnchor] = useState(null);
+  const [selectedDayToCopy, setSelectedDayToCopy] = useState(null);
+  const primaryGradient = 'linear-gradient(45deg, #ff9800, #ff5722)';
 
   // Получение информации о сотруднике
   const {
@@ -131,32 +152,30 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
     setEndDate(endOfWeek(date, { weekStartsOn: 1 }));
   };
 
-  // Тестовые данные для расписания, если API не вернуло результаты
-  const mockSchedule = {
-    employee_id: employeeId || 1,
+  // Значения по умолчанию для расписания
+  const defaultEmptySchedule = {
+    employee_id: employeeId,
     working_hours: {
-      1: { start: '09:00', end: '18:00' },
-      2: { start: '09:00', end: '18:00' },
-      3: { start: '09:00', end: '18:00' },
-      4: { start: '09:00', end: '18:00' },
-      5: { start: '09:00', end: '18:00' },
-      6: { start: '10:00', end: '16:00' }
+      'Понедельник': { start: '09:00', end: '18:00', is_working: true },
+      'Вторник': { start: '09:00', end: '18:00', is_working: true },
+      'Среда': { start: '09:00', end: '18:00', is_working: true },
+      'Четверг': { start: '09:00', end: '18:00', is_working: true },
+      'Пятница': { start: '09:00', end: '18:00', is_working: true },
+      'Суббота': { start: '10:00', end: '16:00', is_working: true },
+      'Воскресенье': { start: '00:00', end: '00:00', is_working: false }
     },
-    time_off: [
-      { date: format(addDays(new Date(), 2), 'yyyy-MM-dd'), reason: 'Отпуск' }
-    ],
-    appointments: [
-      { date: format(new Date(), 'yyyy-MM-dd'), count: 5 },
-      { date: format(addDays(new Date(), 1), 'yyyy-MM-dd'), count: 3 }
-    ]
+    time_off: []
   };
+
+  // Используем данные только из API или пустое расписание с дефолтными значениями
+  const displaySchedule = schedule || defaultEmptySchedule;
 
   // Обновляем функцию при инициализации данных для предварительной очистки некорректных записей
   useEffect(() => {
     if (!schedule) {
       setScheduleData({
-        working_hours: mockSchedule.working_hours,
-        time_off: mockSchedule.time_off || []
+        working_hours: defaultEmptySchedule.working_hours,
+        time_off: defaultEmptySchedule.time_off || []
       });
     } else {
       // Очищаем объект working_hours от некорректных записей
@@ -223,8 +242,8 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
       });
     } else {
       setScheduleData({
-        working_hours: mockSchedule.working_hours,
-        time_off: mockSchedule.time_off || []
+        working_hours: defaultEmptySchedule.working_hours,
+        time_off: defaultEmptySchedule.time_off || []
       });
     }
   };
@@ -263,14 +282,18 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
       
       if (isWorking) {
         // Если день становится рабочим
-        if (!newData.working_hours[day]) {
-          newData.working_hours[day] = { start: '09:00', end: '18:00' };
-        }
+        newData.working_hours[day] = { 
+          start: '09:00', 
+          end: '18:00',
+          is_working: true // Явно указываем булево значение
+        };
       } else {
         // Если день становится выходным
-        if (newData.working_hours[day]) {
-          delete newData.working_hours[day];
-        }
+        newData.working_hours[day] = {
+          start: '00:00',
+          end: '00:00',
+          is_working: false // Явно указываем булево значение
+        };
       }
       
       return newData;
@@ -331,25 +354,18 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
 
   // Функция проверки, является ли день рабочим
   const isWorkingDay = (day) => {
-    // Make sure to handle the case where scheduleData or working_hours might be undefined
     if (!scheduleData || !scheduleData.working_hours) return false;
     
-    // Convert day to string to match the keys in working_hours object
     const dayKey = day.toString();
-    // Проверяем не только наличие ключа, но и что значение не null и содержит start и end
-    return dayKey in scheduleData.working_hours && 
-           scheduleData.working_hours[dayKey] != null && 
-           scheduleData.working_hours[dayKey].start && 
-           scheduleData.working_hours[dayKey].end;
+    const daySchedule = scheduleData.working_hours[dayKey];
+    
+    return daySchedule && daySchedule.is_working === true;
   };
 
   // Подготовка данных для отображения
   const days = eachDayOfInterval({ start: startDate, end: endDate });
   const workDays = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
-  // Используем тестовые данные, если API не вернуло результаты
-  const displaySchedule = schedule || mockSchedule;
-  
   // Улучшаем функцию получения рабочих дней, удаляя дубликаты воскресенья
   const getValidWorkingDays = () => {
     if (!displaySchedule || !displaySchedule.working_hours) {
@@ -402,7 +418,7 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
   };
 
   // Добавляем новую функцию-обработчик для скрытия/отображения воскресенья
-  const handleToggleSunday = () => {
+  const handleToggleSunday = (checked) => {
     if (!editMode) return;
     
     setScheduleData(prev => {
@@ -411,18 +427,143 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
       // Если воскресенье есть в расписании, удаляем его
       if (newData.working_hours && newData.working_hours['0']) {
         delete newData.working_hours['0'];
-        newData.showSunday = false;
+        newData.showSunday = checked ? true : false;
       } else {
         // Иначе добавляем его с дефолтным расписанием
         if (!newData.working_hours) {
           newData.working_hours = {};
         }
         newData.working_hours['0'] = { start: '10:00', end: '16:00' };
-        newData.showSunday = true;
+        newData.showSunday = checked ? true : true;
       }
       
       return newData;
     });
+  };
+
+  // Функция получения времени начала/конца для дня недели
+  const getWorkingHours = (day) => {
+    if (!scheduleData || !scheduleData.working_hours || !scheduleData.working_hours[day]) {
+      return { start: '', end: '' };
+    }
+    return {
+      start: scheduleData.working_hours[day].start,
+      end: scheduleData.working_hours[day].end
+    };
+  };
+
+  // Функция для преобразования времени в минуты от 7:00
+  const timeToMinutes = (time) => {
+    if (!time) return 0;
+    const [hours, minutes] = time.split(':').map(Number);
+    return (hours - 7) * 60 + minutes;
+  };
+
+  // Функция для преобразования минут обратно в формат времени
+  const minutesToTime = (minutes) => {
+    const hours = Math.floor(minutes / 60) + 7;
+    const mins = minutes % 60;
+    return `${hours < 10 ? '0' + hours : hours}:${mins < 10 ? '0' + mins : mins}`;
+  };
+
+  // Получение значения для слайдера
+  const getSliderValue = (day) => {
+    const hours = getWorkingHours(day);
+    return [
+      timeToMinutes(hours.start || '09:00'),
+      timeToMinutes(hours.end || '18:00')
+    ];
+  };
+
+  // Обработчик изменения слайдера времени
+  const handleSliderChange = (day, newValue) => {
+    if (!editMode) return;
+    
+    const [startMinutes, endMinutes] = newValue;
+    const startTime = minutesToTime(startMinutes);
+    const endTime = minutesToTime(endMinutes);
+    
+    setScheduleData(prev => {
+      const newData = { ...prev };
+      
+      if (!newData.working_hours) {
+        newData.working_hours = {};
+      }
+      
+      newData.working_hours[day] = {
+        start: startTime,
+        end: endTime
+      };
+      
+      return newData;
+    });
+  };
+
+  // Обработчик изменения времени через селект
+  const handleTimeSelectChange = (day, field, value) => {
+    if (!editMode) return;
+    
+    setScheduleData(prev => {
+      const newData = { ...prev };
+      
+      if (!newData.working_hours) {
+        newData.working_hours = {};
+      }
+      
+      if (!newData.working_hours[day]) {
+        newData.working_hours[day] = { start: '09:00', end: '18:00' };
+      }
+      
+      newData.working_hours[day][field] = value;
+      
+      return newData;
+    });
+  };
+
+  // Создание временных опций для селект
+  const timeOptions = [];
+  for (let hour = 7; hour <= 23; hour++) {
+    for (let minute of ['00', '15', '30', '45']) {
+      timeOptions.push(`${hour < 10 ? '0' + hour : hour}:${minute}`);
+    }
+  }
+  timeOptions.push('24:00');
+
+  // Метки для слайдера времени
+  const timeMarks = [];
+  for (let hour = 7; hour <= 24; hour++) {
+    timeMarks.push({
+      value: (hour - 7) * 60,
+      label: `${hour}:00`
+    });
+  }
+
+  // Обработчик открытия меню копирования
+  const handleCopyClick = (event, day) => {
+    setSelectedDayToCopy(day);
+    setCopyMenuAnchor(event.currentTarget);
+  };
+
+  // Обработчик закрытия меню копирования
+  const handleCopyClose = () => {
+    setCopyMenuAnchor(null);
+  };
+
+  // Обработчик копирования расписания в другой день
+  const handleCopyTo = (targetDay) => {
+    if (!editMode) return;
+    
+    if (scheduleData.working_hours && scheduleData.working_hours[selectedDayToCopy]) {
+      setScheduleData(prev => {
+        const newData = { ...prev };
+        if (!newData.working_hours) {
+          newData.working_hours = {};
+        }
+        newData.working_hours[targetDay] = { ...newData.working_hours[selectedDayToCopy] };
+        return newData;
+      });
+    }
+    handleCopyClose();
   };
 
   // Отображение загрузки
@@ -443,691 +584,617 @@ const EmployeeSchedule = ({ employeeId, onClose }) => {
     );
   }
 
+  // Сокращенные имена дней недели
+  const shortDayNames = {
+    'Понедельник': 'Пн',
+    'Вторник': 'Вт',
+    'Среда': 'Ср',
+    'Четверг': 'Чт',
+    'Пятница': 'Пт',
+    'Суббота': 'Сб',
+    'Воскресенье': 'Вс'
+  };
+
+  // Полные имена дней недели
+  const dayNames = {
+    'Понедельник': 'Понедельник',
+    'Вторник': 'Вторник',
+    'Среда': 'Среда',
+    'Четверг': 'Четверг',
+    'Пятница': 'Пятница',
+    'Суббота': 'Суббота',
+    'Воскресенье': 'Воскресенье'
+  };
+
   return (
-    <Box sx={{ mb: 4 }}>
-      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: { xs: 'column', sm: 'row' }, 
-          alignItems: { xs: 'stretch', sm: 'center' }, 
-          mb: 2,
-          gap: 1
-        }}>
-          <Button 
-            variant="outlined" 
-            startIcon={<ArrowBackIcon />} 
+    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ 
+        p: 2, 
+        mb: 2, 
+        background: primaryGradient,
+        color: 'white',
+        borderRadius: '8px',
+          display: 'flex',
+          justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 4px 12px rgba(255, 152, 0, 0.2)'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <IconButton 
             onClick={onClose}
-            sx={{ mr: { xs: 0, sm: 2 }, mb: { xs: 1, sm: 0 } }}
-            fullWidth={false}
-            size="medium"
-          >
-            Назад
-          </Button>
-          
-          <Typography 
-            variant="h5" 
             sx={{ 
-              fontWeight: 'bold', 
-              color: 'primary.main', 
-              flex: 1,
-              fontSize: { xs: '1.2rem', sm: '1.5rem' }
+              color: '#ffffff',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              mr: 2,
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
             }}
           >
-            <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-            {employee ? `${employee.first_name} ${employee.last_name}` : 'Сотрудник'} - Расписание
-          </Typography>
-          
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 1, 
-            flexDirection: { xs: 'column', sm: 'row' },
-            width: { xs: '100%', sm: 'auto' },
-            mt: { xs: 1, sm: 0 }
-          }}>
-            {!editMode && (
-              <Button 
-                variant="contained" 
-                startIcon={<EditIcon />}
-                onClick={handleEditMode}
-                fullWidth={false}
-                size="medium"
-                sx={{ width: { xs: '100%', sm: 'auto' } }}
-              >
-                Редактировать
-              </Button>
-            )}
-            {editMode && (
-              <>
-                <Button 
-                  variant="contained" 
-                  color="primary" 
-                  startIcon={<SaveIcon />}
-                  onClick={handleSaveSchedule}
-                  disabled={updateScheduleMutation.isLoading}
-                  sx={{ fontWeight: 'bold', width: { xs: '100%', sm: 'auto' } }}
-                  size="medium"
-                >
-                  {updateScheduleMutation.isLoading ? 'Сохранение...' : 'Сохранить'}
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  onClick={handleCancelEdit}
-                  disabled={updateScheduleMutation.isLoading}
-                  sx={{ width: { xs: '100%', sm: 'auto' } }}
-                  size="medium"
-                >
-                  Отмена
-                </Button>
-              </>
-            )}
-          </Box>
-        </Box>
-
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: { xs: 'column', sm: 'row' }, 
-          alignItems: { xs: 'flex-start', sm: 'center' }, 
-          mb: 2,
-          mt: { xs: 2, sm: 1 },
-          gap: 1
-        }}>
-          <Typography variant="body1" sx={{ mr: { xs: 0, sm: 2 }, mb: { xs: 1, sm: 0 } }}>
-            Выберите неделю:
-          </Typography>
-          <LocalizationProvider 
-            dateAdapter={AdapterDateFns}
-            adapterLocale={ruLocale}
-          >
-            <DatePicker 
-              label="Дата"
-              value={selectedDate}
-              onChange={handleDateChange}
-              slotProps={{ textField: { size: "small" } }}
-              sx={{ width: { xs: '100%', sm: 200 } }}
-            />
-          </LocalizationProvider>
-          <Typography 
-            variant="body2" 
-            color="text.secondary" 
-            sx={{ 
-              ml: { xs: 0, sm: 2 },
-              mt: { xs: 1, sm: 0 }
-            }}
-          >
-            Период: {format(startDate, 'dd.MM.yyyy')} — {format(endDate, 'dd.MM.yyyy')}
-          </Typography>
-        </Box>
-
-        {editMode && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              Настройте рабочее расписание сотрудника на каждый день недели и укажите выходные дни.
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+            Настройка расписания сотрудника
             </Typography>
-          </Alert>
-        )}
-        
-        <Box sx={{ 
-          display: { xs: 'flex', md: 'none' }, 
-          mt: 2,
-          justifyContent: 'center' 
-        }}>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<EventBusyIcon />}
-            onClick={handleOpenTimeOffDialog}
-            size="medium"
-            fullWidth
-          >
-            Добавить выходной день
-          </Button>
         </Box>
+        
+        <Box>
+          {!editMode ? (
+            <Button
+              variant="contained"
+              onClick={handleEditMode}
+              startIcon={<EditIcon />}
+              sx={{ 
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.3)',
+                },
+                mr: 1
+              }}
+            >
+              Редактировать
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                onClick={handleCancelEdit}
+                sx={{ 
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  mr: 1,
+                  '&:hover': {
+                    bgcolor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                }}
+              >
+                Отмена
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSaveSchedule}
+                startIcon={<SaveIcon />}
+                sx={{ 
+                  bgcolor: '#008080',
+                  color: 'white',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                  '&:hover': {
+                    bgcolor: '#006666',
+                  }
+                }}
+              >
+                Сохранить
+              </Button>
+            </>
+          )}
+        </Box>
+        </Box>
+
+      {/* Информация о сотруднике */}
+      {employeeInfo && (
+        <Paper sx={{ 
+          p: 2, 
+          mb: 2, 
+          borderRadius: 3,
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 35, 0.95)' : 'rgba(250, 250, 250, 0.95)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                              border: '1px solid',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Avatar 
+              src={employeeInfo.profile_image} 
+              sx={{ width: 56, height: 56, mr: 2 }}
+            >
+              {employeeInfo.first_name?.charAt(0)}{employeeInfo.last_name?.charAt(0)}
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                {employeeInfo.first_name} {employeeInfo.last_name}
+                              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {employeeInfo.position || 'Специалист'} • {employeeInfo.salon_name || 'Салон не указан'}
+                                </Typography>
+                              </Box>
+                            </Box>
+        </Paper>
+      )}
+
+      {/* Быстрые шаблоны расписания */}
+      <Paper sx={{ 
+        p: 2, 
+        mb: 2, 
+        borderRadius: 3,
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 35, 0.95)' : 'rgba(250, 250, 250, 0.95)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        border: '1px solid',
+        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+          mb: 2 
+        }}>
+          <ScheduleIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            Быстрые шаблоны расписания
+                    </Typography>
+        </Box>
+                  
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      <Button
+            variant="contained"
+            startIcon={<CalendarMonthIcon />}
+            onClick={() => {
+              if (editMode) {
+                const standardWeek = {
+                  'Понедельник': { start: '09:00', end: '18:00', is_working: true },
+                  'Вторник': { start: '09:00', end: '18:00', is_working: true },
+                  'Среда': { start: '09:00', end: '18:00', is_working: true },
+                  'Четверг': { start: '09:00', end: '18:00', is_working: true },
+                  'Пятница': { start: '09:00', end: '18:00', is_working: true },
+                  'Суббота': { start: '00:00', end: '00:00', is_working: false },
+                  'Воскресенье': { start: '00:00', end: '00:00', is_working: false },
+                };
+                setScheduleData(prev => ({ ...prev, working_hours: standardWeek }));
+              }
+            }}
+            disabled={!editMode}
+                        sx={{ 
+              bgcolor: '#3f51b5',
+                          '&:hover': {
+                bgcolor: '#303f9f',
+              },
+              '&.Mui-disabled': {
+                bgcolor: 'rgba(63, 81, 181, 0.5)',
+                color: 'rgba(255, 255, 255, 0.6)',
+              }
+            }}
+          >
+            Стандартная неделя
+                      </Button>
+          
+          <Button 
+            variant="contained"
+            startIcon={<CalendarMonthIcon />}
+            onClick={() => {
+              if (editMode) {
+                const dailySchedule = {
+                  'Понедельник': { start: '09:00', end: '18:00', is_working: true },
+                  'Вторник': { start: '09:00', end: '18:00', is_working: true },
+                  'Среда': { start: '09:00', end: '18:00', is_working: true },
+                  'Четверг': { start: '09:00', end: '18:00', is_working: true },
+                  'Пятница': { start: '09:00', end: '18:00', is_working: true },
+                  'Суббота': { start: '09:00', end: '18:00', is_working: true },
+                  'Воскресенье': { start: '09:00', end: '18:00', is_working: true },
+                };
+                setScheduleData(prev => ({ ...prev, working_hours: dailySchedule }));
+              }
+            }}
+            disabled={!editMode}
+                          sx={{ 
+              bgcolor: '#9c27b0',
+                            '&:hover': {
+                bgcolor: '#7b1fa2',
+              },
+              '&.Mui-disabled': {
+                bgcolor: 'rgba(156, 39, 176, 0.5)',
+                color: 'rgba(255, 255, 255, 0.6)',
+              }
+            }}
+          >
+            Ежедневно
+          </Button>
+          
+          <Button 
+            variant="contained"
+            startIcon={<CalendarMonthIcon />}
+            onClick={() => {
+              if (editMode) {
+                const weekendSchedule = {
+                  'Понедельник': { start: '09:00', end: '18:00', is_working: true },
+                  'Вторник': { start: '09:00', end: '18:00', is_working: true },
+                  'Среда': { start: '09:00', end: '18:00', is_working: true },
+                  'Четверг': { start: '09:00', end: '18:00', is_working: true },
+                  'Пятница': { start: '09:00', end: '18:00', is_working: true },
+                  'Суббота': { start: '10:00', end: '15:00', is_working: true },
+                  'Воскресенье': { start: '00:00', end: '00:00', is_working: false },
+                };
+                setScheduleData(prev => ({ ...prev, working_hours: weekendSchedule }));
+              }
+            }}
+            disabled={!editMode}
+                            sx={{ 
+              bgcolor: '#009688',
+              '&:hover': {
+                bgcolor: '#00796b',
+              },
+              '&.Mui-disabled': {
+                bgcolor: 'rgba(0, 150, 136, 0.5)',
+                color: 'rgba(255, 255, 255, 0.6)',
+              }
+            }}
+          >
+            Стандарт + короткая суббота
+          </Button>
+                    </Box>
       </Paper>
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={4}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  color: 'primary.main',
-                  borderBottom: '1px solid #eee',
-                  pb: 1,
-                  fontSize: { xs: '1rem', sm: '1.25rem' }
-                }}>
-                  <AccessTimeIcon sx={{ mr: 1 }} />
-                  Стандартное расписание
-                </Typography>
-                
-                <Box>
-                  {editMode ? (
-                    <Box sx={{ mt: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
-                          Укажите стандартное рабочее время для каждого дня недели:
-                        </Typography>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          color={isWorkingDay(0) ? "error" : "success"}
-                          onClick={handleToggleSunday}
-                        >
-                          {isWorkingDay(0) ? "Убрать воскресенье" : "Добавить воскресенье"}
-                        </Button>
-                      </Box>
-                      <FormGroup>
-                        {[1, 2, 3, 4, 5, 6].map((day) => (
-                          <Paper 
-                            key={day} 
-                            sx={{ 
-                              p: 1.5, 
-                              mb: 1, 
-                              display: 'flex', 
-                              alignItems: 'center',
-                              flexDirection: { xs: 'column', sm: 'row' },
-                              gap: 1,
-                              bgcolor: isWorkingDay(day) ? 'rgba(0, 230, 118, 0.08)' : 'inherit'
-                            }}
-                          >
-                            <FormControlLabel
-                              control={
-                                <Switch
-                                  checked={isWorkingDay(day)}
-                                  onChange={(e) => handleWorkingDayChange(day, e.target.checked)}
-                                  color="primary"
-                                />
-                              }
-                              label={
-                                <Typography variant="body2" sx={{ fontWeight: 'medium', minWidth: 100 }}>
-                                  {workDays[day - 1]}
-                                </Typography>
-                              }
-                              sx={{ m: 0, width: { xs: '100%', sm: 'auto' } }}
-                            />
-                            
-                            {isWorkingDay(day) && (
-                              <Box sx={{ 
-                                display: 'flex', 
-                                alignItems: 'center',
-                                width: '100%',
-                                justifyContent: 'space-between'
-                              }}>
-                                <TextField
-                                  label="Начало"
-                                  type="time"
-                                  value={scheduleData.working_hours[day]?.start || '09:00'}
-                                  onChange={(e) => handleWorkingHoursChange(day, 'start', e.target.value)}
-                                  InputLabelProps={{ shrink: true }}
-                                  inputProps={{ step: 300 }}
-                                  size="small"
-                                  sx={{ width: '45%' }}
-                                />
-                                <Typography variant="body2" sx={{ mx: 1 }}>—</Typography>
-                                <TextField
-                                  label="Конец"
-                                  type="time"
-                                  value={scheduleData.working_hours[day]?.end || '18:00'}
-                                  onChange={(e) => handleWorkingHoursChange(day, 'end', e.target.value)}
-                                  InputLabelProps={{ shrink: true }}
-                                  inputProps={{ step: 300 }}
-                                  size="small"
-                                  sx={{ width: '45%' }}
-                                />
-                              </Box>
-                            )}
-                          </Paper>
-                        ))}
-                        
-                        {/* Отдельная карточка для воскресенья, если оно должно отображаться */}
-                        {isWorkingDay(0) && (
-                          <Paper 
-                            key={0} 
-                            sx={{ 
-                              p: 1.5, 
-                              mb: 1, 
-                              display: 'flex', 
-                              alignItems: 'center',
-                              flexDirection: { xs: 'column', sm: 'row' },
-                              gap: 1,
-                              bgcolor: 'rgba(0, 230, 118, 0.08)'
-                            }}
-                          >
-                            <FormControlLabel
-                              control={
-                                <Switch
-                                  checked={true}
-                                  onChange={() => handleToggleSunday()}
-                                  color="primary"
-                                />
-                              }
-                              label={
-                                <Typography variant="body2" sx={{ fontWeight: 'medium', minWidth: 100 }}>
-                                  {workDays[6]} {/* Воскресенье */}
-                                </Typography>
-                              }
-                              sx={{ m: 0, width: { xs: '100%', sm: 'auto' } }}
-                            />
-                            
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center',
-                              width: '100%',
-                              justifyContent: 'space-between'
-                            }}>
-                              <TextField
-                                label="Начало"
-                                type="time"
-                                value={scheduleData.working_hours[0]?.start || '10:00'}
-                                onChange={(e) => handleWorkingHoursChange(0, 'start', e.target.value)}
-                                InputLabelProps={{ shrink: true }}
-                                inputProps={{ step: 300 }}
-                                size="small"
-                                sx={{ width: '45%' }}
-                              />
-                              <Typography variant="body2" sx={{ mx: 1 }}>—</Typography>
-                              <TextField
-                                label="Конец"
-                                type="time"
-                                value={scheduleData.working_hours[0]?.end || '16:00'}
-                                onChange={(e) => handleWorkingHoursChange(0, 'end', e.target.value)}
-                                InputLabelProps={{ shrink: true }}
-                                inputProps={{ step: 300 }}
-                                size="small"
-                                sx={{ width: '45%' }}
-                              />
-                            </Box>
-                          </Paper>
-                        )}
-                      </FormGroup>
-                    </Box>
-                  ) : (
-                    <Box sx={{ mt: 2 }}>
-                      {getValidWorkingDays().length > 0 ? (
-                        getValidWorkingDays().map(([day, hours]) => (
-                          <Box 
-                            key={day} 
-                            sx={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center',
-                              mb: 1,
-                              p: 1.5,
-                              borderLeft: '4px solid',
-                              borderColor: 'primary.main',
-                              bgcolor: 'rgba(0, 230, 118, 0.08)',
-                              borderRadius: 1,
-                              width: '100%'
-                            }}
-                          >
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center',
-                              minWidth: '140px'
-                            }}>
-                              <AccessTimeIcon sx={{ mr: 1.5, color: 'primary.main' }} />
-                              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                                {workDays[day === 0 ? 6 : (day > 0 && day <= 7 ? day - 1 : 0)]}
-                              </Typography>
-                            </Box>
-                            <Typography variant="body1" color="text.primary" sx={{ 
-                              fontWeight: 'medium',
-                              ml: 'auto'
-                            }}>
-                              {`${hours.start} — ${hours.end}`}
-                            </Typography>
-                          </Box>
-                        ))
-                      ) : (
-                        <Alert severity="warning">
-                          Рабочее расписание не настроено. Нажмите "Редактировать расписание" для настройки.
-                        </Alert>
-                      )}
-                    </Box>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
+      {/* Дни недели */}
+      {!isLoadingSchedule && !scheduleError && !isLoadingEmployee && !employeeError && scheduleData && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'].map((day) => {
+            const daySchedule = scheduleData.working_hours[day] || { start: '09:00', end: '18:00', is_working: false };
+            const isWorkDay = daySchedule.is_working !== false && daySchedule.start && daySchedule.end;
 
-            <Card>
-              <CardContent>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between',
-                  color: 'primary.main',
-                  borderBottom: '1px solid #eee',
-                  pb: 1 
-                }}>
-                  <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, display: 'flex', alignItems: 'center' }}>
-                    <EventBusyIcon sx={{ mr: 1 }} />
-                    Выходные дни
-                  </Typography>
-                  
-                  <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      size="small"
-                      startIcon={<EventBusyIcon />}
-                      onClick={handleOpenTimeOffDialog}
+            return (
+                <Paper 
+                key={day} 
+                  elevation={0} 
+                  sx={{ 
+                  borderRadius: 3,
+                    overflow: 'hidden',
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)'
+                  },
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 35, 0.95)' : 'rgba(250, 250, 250, 0.95)',
+                    border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+                }}
+              >
+                <Box 
+                            sx={{ 
+                    p: 2, 
+                    pb: 1.5, 
+                    borderBottom: '1px solid',
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: isWorkDay 
+                      ? theme.palette.mode === 'dark' 
+                        ? 'linear-gradient(to right, rgba(46, 125, 50, 0.2), rgba(46, 125, 50, 0.05))' 
+                        : 'linear-gradient(to right, rgba(76, 175, 80, 0.15), rgba(76, 175, 80, 0.02))'
+                      : theme.palette.mode === 'dark'
+                        ? 'linear-gradient(to right, rgba(211, 47, 47, 0.2), rgba(211, 47, 47, 0.05))'
+                        : 'linear-gradient(to right, rgba(244, 67, 54, 0.15), rgba(244, 67, 54, 0.02))'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar 
+                            sx={{ 
+                        width: 38, 
+                        height: 38, 
+                        mr: 2,
+                        bgcolor: isWorkDay 
+                          ? theme.palette.success.main 
+                          : theme.palette.error.main,
+                        color: '#fff',
+                              fontWeight: 'bold',
+                        fontSize: '1rem'
+                      }}
                     >
-                      Добавить выходной
-                    </Button>
-                  </Box>
-                </Box>
-                
-                {scheduleData.time_off && scheduleData.time_off.length > 0 ? (
-                  <Box sx={{ mt: 2 }}>
-                    {scheduleData.time_off.map((timeOff, index) => (
-                      <Paper 
-                        key={index} 
-                        sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          mb: 1,
-                          p: 1.5,
-                          bgcolor: 'rgba(244, 67, 54, 0.08)',
-                          borderRadius: 1,
-                          flexDirection: { xs: 'column', sm: 'row' },
-                          gap: { xs: 1, sm: 0 }
+                      {shortDayNames[day]}
+                    </Avatar>
+                    <Box>
+                      <Typography 
+                        variant="subtitle1" 
+                            sx={{ 
+                          fontWeight: 600,
+                          color: isWorkDay ? theme.palette.text.primary : theme.palette.text.secondary,
+                          mb: 0.3
                         }}
                       >
-                        <Box>
-                          <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                            {format(parseISO(timeOff.date), 'dd.MM.yyyy')}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {timeOff.reason}
-                          </Typography>
-                        </Box>
+                        {isMobile ? shortDayNames[day] : dayNames[day]}
+                      </Typography>
+                      {isWorkDay && (
                         <Chip 
-                          label="Выходной" 
-                          color="error" 
                           size="small" 
-                          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
+                          label={`${daySchedule.start} - ${daySchedule.end}`}
+                            sx={{ 
+                            height: 24, 
+                            fontSize: '0.75rem',
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                            borderRadius: 1,
+                            '& .MuiChip-label': { px: 1 }
+                          }}
                         />
-                      </Paper>
-                    ))}
+                      )}
+                    </Box>
                   </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: 'italic' }}>
-                    Нет отмеченных выходных дней
-                  </Typography>
-                )}
-              </CardContent>
-            </Card>
-          </Box>
-        </Grid>
 
-        <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent sx={{ p: { xs: 1, sm: 2 } }}>
-              <Typography variant="h6" gutterBottom sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                color: 'primary.main',
-                borderBottom: '1px solid #eee',
-                pb: 1,
-                px: { xs: 1, sm: 0 },
-                fontSize: { xs: '1rem', sm: '1.25rem' }
-              }}>
-                Расписание по дням
-              </Typography>
-              
-              <TableContainer sx={{ 
-                maxWidth: '100%', 
-                overflowX: 'auto',
-                '&::-webkit-scrollbar': {
-                  height: '8px',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: 'rgba(0,0,0,0.2)',
-                  borderRadius: '4px',
-                }
-              }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'primary.light' }}>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>День</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>Дата</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>Статус</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'table-cell' } }}>Рабочее время</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap', display: { xs: 'none', sm: 'table-cell' } }}>Записи</TableCell>
-                      {editMode && <TableCell sx={{ fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>Действия</TableCell>}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {days.map((day) => {
-                      const dayOfWeek = getDay(day);
-                      const dayNumber = dayOfWeek === 0 ? 0 : dayOfWeek;
-                      const isWorking = isWorkingDay(dayNumber);
-                      const isOff = isDayOff(day);
-                      const timeOffReasonText = getTimeOffReason(day);
-                      const dayAppointments = displaySchedule.appointments?.find(
-                        a => a.date === format(day, 'yyyy-MM-dd')
-                      );
-                      
-                      return (
-                        <TableRow 
-                          key={format(day, 'yyyy-MM-dd')}
-                          sx={{ 
-                            bgcolor: isToday(day) 
-                              ? 'rgba(33, 150, 243, 0.08)' 
-                              : isOff 
-                                ? 'rgba(244, 67, 54, 0.08)' 
-                                : isWorking 
-                                  ? 'rgba(0, 230, 118, 0.08)' 
-                                  : 'inherit',
-                            '&:hover': {
-                              bgcolor: 'rgba(0, 0, 0, 0.04)',
-                            },
-                            '& .MuiTableCell-root': {
-                              p: { xs: 1, sm: 2 },
+                  <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+                    <Switch
+                      checked={isWorkDay}
+                      onChange={(e) => editMode && handleWorkingDayChange(day, e.target.checked)}
+                      disabled={!editMode}
+                      color="success"
+                      sx={{ mr: 0.5 }}
+                    />
+                    <Tooltip title="Копировать расписание">
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => editMode && handleCopyClick(e, day)}
+                        disabled={!editMode || !isWorkDay}
+                              sx={{ 
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+                                '&:hover': {
+                            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
+                          },
+                          ml: 1
+                        }}
+                      >
+                        <ContentCopyIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
+
+                {isWorkDay && (
+                  <Box sx={{ p: 2, pt: 2 }}>
+                    <Box 
+                                    sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        mb: 2,
+                        px: 1.5
+                      }}
+                    >
+                      <AccessTimeIcon 
+                        fontSize="small" 
+                                      sx={{ 
+                          color: theme.palette.text.secondary,
+                          mr: 2 
+                        }} 
+                      />
+                      <Box
+                                    sx={{ 
+                          width: '100%',
+                          height: 28,
+                          bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                          borderRadius: 1.5,
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {/* Time scale background */}
+                        <Box 
+                                    sx={{ 
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            px: 1,
+                            '& > span': {
+                              flex: 1,
+                              textAlign: 'center',
+                              fontSize: '0.65rem',
+                              color: theme.palette.text.disabled,
+                              fontWeight: 500
                             }
                           }}
                         >
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                              {workDays[dayOfWeek === 0 ? 6 : dayOfWeek - 1].substring(0, 3)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-                              <Typography 
-                                variant="body2"
-                                sx={{ fontWeight: isToday(day) ? 'bold' : 'normal' }}
-                              >
-                                {format(day, 'dd.MM')}
-                              </Typography>
-                              {isToday(day) && (
-                                <Chip
-                                  label="Сегодня"
-                                  size="small"
-                                  color="primary"
-                                  sx={{ 
-                                    height: '20px', 
-                                    '& .MuiChip-label': { 
-                                      px: 0.5, 
-                                      fontSize: '0.625rem'
-                                    } 
-                                  }}
-                                />
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                            {isOff ? (
-                              <Chip
-                                label="Выходной"
-                                size="small"
-                                color="error"
-                                title={timeOffReasonText}
-                                sx={{ 
-                                  height: '20px', 
-                                  '& .MuiChip-label': { 
-                                    px: 0.5, 
-                                    fontSize: '0.625rem'
-                                  } 
-                                }}
-                              />
-                            ) : isWorking ? (
-                              <Chip
-                                label="Рабочий"
-                                size="small"
-                                color="success"
-                                sx={{ 
-                                  height: '20px', 
-                                  '& .MuiChip-label': { 
-                                    px: 0.5, 
-                                    fontSize: '0.625rem'
-                                  } 
-                                }}
-                              />
-                            ) : (
-                              <Chip
-                                label="Выходной"
-                                size="small"
-                                color="default"
-                                sx={{ 
-                                  height: '20px', 
-                                  '& .MuiChip-label': { 
-                                    px: 0.5, 
-                                    fontSize: '0.625rem'
-                                  } 
-                                }}
-                              />
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ whiteSpace: 'nowrap', display: { xs: 'none', sm: 'table-cell' } }}>
-                            {isWorking && !isOff ? (
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <AccessTimeIcon fontSize="small" sx={{ mr: 0.5, fontSize: '1rem', color: 'success.main' }} />
-                                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                  {displaySchedule.working_hours && 
-                                   displaySchedule.working_hours[dayNumber] && 
-                                   displaySchedule.working_hours[dayNumber].start && 
-                                   displaySchedule.working_hours[dayNumber].end ? 
-                                    `${displaySchedule.working_hours[dayNumber].start} — ${displaySchedule.working_hours[dayNumber].end}` : 
-                                    'Не указано'}
-                                </Typography>
-                              </Box>
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">
-                                Выходной
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell sx={{ whiteSpace: 'nowrap', display: { xs: 'none', sm: 'table-cell' } }}>
-                            {dayAppointments ? (
-                              <Chip
-                                label={`${dayAppointments.count} записей`}
-                                size="small"
-                                color="primary"
-                                sx={{ 
-                                  height: '20px', 
-                                  '& .MuiChip-label': { 
-                                    px: 0.5, 
-                                    fontSize: '0.625rem'
-                                  } 
-                                }}
-                              />
-                            ) : (
-                              <Typography variant="body2" color="text.secondary">
-                                Нет записей
-                              </Typography>
-                            )}
-                          </TableCell>
-                          {editMode && (
-                            <TableCell sx={{ p: 1 }}>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                color="primary"
-                                onClick={handleOpenTimeOffDialog}
-                                sx={{ 
-                                  minWidth: 'unset',
-                                  p: '4px 8px',
-                                  '& .MuiButton-startIcon': {
-                                    m: 0
-                                  },
-                                  '& .MuiButton-startIcon > svg': {
-                                    fontSize: '1rem'
-                                  }
-                                }}
-                              >
-                                <EventBusyIcon fontSize="small" />
-                              </Button>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+                          {[7, 10, 13, 16, 19, 22].map(hour => (
+                            <span key={hour}>{hour}:00</span>
+                          ))}
+                        </Box>
+                        
+                        {/* Active hours highlight */}
+                        <Box 
+                                    sx={{ 
+                            position: 'absolute',
+                            top: 0,
+                            bottom: 0,
+                            left: `${((timeToMinutes(daySchedule.start)) / (17 * 60)) * 100}%`,
+                            width: `${((timeToMinutes(daySchedule.end) - timeToMinutes(daySchedule.start)) / (17 * 60)) * 100}%`,
+                            background: 'linear-gradient(90deg, rgba(76,175,80,0.5) 0%, rgba(76,175,80,0.7) 100%)',
+                            borderRadius: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: '#fff', 
+                              fontWeight: 'bold', 
+                              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            {`${daySchedule.start} - ${daySchedule.end}`}
+                                    </Typography>
+                                  </Box>
+                      </Box>
+                    </Box>
 
-      <Dialog
-        open={timeOffDialogOpen}
-        onClose={() => setTimeOffDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      mt: 2, 
+                      gap: 2 
+                    }}>
+                      <Box sx={{ width: '48%' }}>
+                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                          Начало
+                                  </Typography>
+                        <TextField
+                          select
+                          value={daySchedule.start}
+                          onChange={(e) => editMode && handleTimeSelectChange(day, 'start', e.target.value)}
+                          disabled={!editMode}
+                          fullWidth
+                          variant="outlined"
+                                    size="small"
+                          SelectProps={{
+                            MenuProps: {
+                              PaperProps: {
+                                style: {
+                                  maxHeight: 300,
+                                },
+                              },
+                            },
+                          }}
+                                    sx={{ 
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                            }
+                          }}
+                        >
+                          {timeOptions.map(time => (
+                            <MenuItem key={time} value={time}>
+                              {time}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Box>
+                      
+                      <Box sx={{ width: '48%' }}>
+                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                          Конец
+                                  </Typography>
+                        <TextField
+                          select
+                          value={daySchedule.end}
+                          onChange={(e) => editMode && handleTimeSelectChange(day, 'end', e.target.value)}
+                          disabled={!editMode}
+                          fullWidth
+                                    variant="outlined"
+                                    size="small"
+                          SelectProps={{
+                            MenuProps: {
+                              PaperProps: {
+                                style: {
+                                  maxHeight: 300,
+                                },
+                              },
+                            },
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                            }
+                          }}
+                        >
+                          {timeOptions.map(time => (
+                            <MenuItem key={time} value={time}>
+                              {time}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+              </Paper>
+                          );
+                        })}
+        </Box>
+      )}
+
+      {/* Menu for copy to other days */}
+      <Menu
+        anchorEl={copyMenuAnchor}
+        open={Boolean(copyMenuAnchor)}
+        onClose={handleCopyClose}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            borderRadius: 2,
+            minWidth: 180,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+          }
+        }}
       >
-        <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white', py: 1.5 }}>
-          Добавить выходной день
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3, px: { xs: 2, sm: 3 } }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Выберите дату выходного дня:
-          </Typography>
-          
-          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ruLocale}>
+        <Typography variant="subtitle2" sx={{ px: 2, py: 1, fontWeight: 'bold', color: 'text.secondary' }}>
+          Скопировать в день:
+        </Typography>
+        {['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'].map((day) => (
+          <MenuItem 
+            key={day} 
+            onClick={() => handleCopyTo(day)}
+            disabled={day === selectedDayToCopy}
+            sx={{
+              py: 1.5,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              '&:last-child': {
+                borderBottom: 'none'
+              }
+            }}
+          >
+            <Avatar 
+              sx={{ 
+                width: 28, 
+                height: 28, 
+                mr: 2,
+                bgcolor: theme.palette.primary.main,
+                fontSize: '0.75rem'
+              }}
+            >
+              {shortDayNames[day]}
+            </Avatar>
+            <ListItemText primary={day} />
+          </MenuItem>
+        ))}
+      </Menu>
+      
+      {/* Time off dialog */}
+      <Dialog open={timeOffDialogOpen} onClose={() => setTimeOffDialogOpen(false)}>
+        <DialogTitle>Добавить выходной день</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Выберите дату и укажите причину выходного:
+          </DialogContentText>
+          <Box sx={{ mt: 2 }}>
+            <LocalizationProvider dateAdapter={AdapterDateFns} locale={ruLocale}>
             <DatePicker
-              label="Дата выходного"
+              label="Дата"
               value={selectedDayForTimeOff}
               onChange={handleTimeOffDateChange}
-              slotProps={{ textField: { fullWidth: true, sx: { mb: 3 } } }}
-              minDate={new Date()}
+                renderInput={(params) => <TextField {...params} fullWidth />}
             />
           </LocalizationProvider>
-          
-          <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-            Укажите причину:
-          </Typography>
-          
+          </Box>
           <TextField
-            autoFocus
-            margin="dense"
-            id="reason"
+            margin="normal"
             label="Причина"
-            type="text"
             fullWidth
             value={timeOffReason}
             onChange={(e) => setTimeOffReason(e.target.value)}
-            variant="outlined"
           />
         </DialogContent>
-        <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 } }}>
-          <Button 
-            onClick={() => setTimeOffDialogOpen(false)}
-            variant="outlined"
-            fullWidth={false}
-          >
-            Отмена
-          </Button>
-          <Button
-            onClick={handleAddTimeOff}
-            color="primary"
-            variant="contained"
-            startIcon={<EventBusyIcon />}
-            fullWidth={false}
-          >
-            Добавить выходной
+        <DialogActions>
+          <Button onClick={() => setTimeOffDialogOpen(false)}>Отмена</Button>
+          <Button onClick={handleAddTimeOff} variant="contained" color="primary">
+            Добавить
           </Button>
         </DialogActions>
       </Dialog>

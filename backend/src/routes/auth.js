@@ -44,9 +44,8 @@ router.post('/init', async (req, res) => {
     if (rows.length === 0) {
       // Create new client
       const { rows: [newUser] } = await db.query(
-        'INSERT INTO clients (name, first_name, last_name, contact_info) VALUES ($1, $2, $3, $4) RETURNING id',
+        'INSERT INTO clients (first_name, last_name, contact_info) VALUES ($1, $2, $3) RETURNING id',
         [
-          `${user.first_name} ${user.last_name || ''}`.trim(), 
           user.first_name, 
           user.last_name || '', 
           {
@@ -470,81 +469,58 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Get current user profile
+// Get user profile
 router.get('/profile', verifyToken, async (req, res) => {
   try {
-    // Проверяем, к какой таблице нужно обращаться на основе роли
-    const userRole = req.user.role || '';
-    const isClient = userRole === 'client';
+    const { userId, role } = req.user;
     
-    let userData;
-    
-    if (isClient) {
-      // Для клиентов
-      try {
-        const { rows } = await db.query(
-          `SELECT * FROM clients WHERE id = $1`,
-          [req.user.userId]
-        );
-        
-        if (rows.length === 0) {
-          return res.status(404).json({ message: 'Клиент не найден' });
-        }
-        
-        userData = {
-          ...rows[0],
-          role: 'client'
-        };
-      } catch (error) {
-        // Если таблица clients не существует, сообщаем об ошибке
-        if (error.code === '42P01') { // 42P01 - код ошибки "relation does not exist"
-          return res.status(404).json({ message: 'Таблица клиентов не существует' });
-        }
-        throw error;
-      }
-    } else if (userRole === 'admin') {
-      // Для администратора возвращаем фиксированные данные
-      userData = {
-        id: req.user.userId,
-        name: 'Администратор',
-        role: 'admin'
-      };
-    } else {
-      // Для сотрудников
+    let user;
+    if (role === 'employee') {
       const { rows } = await db.query(
-        `SELECT e.*, s.name as salon_name 
-         FROM employees e 
-         LEFT JOIN salons s ON e.salon_id = s.id 
-         WHERE e.id = $1`,
-        [req.user.userId]
+        'SELECT id, first_name, last_name, role, salon_id, contact_info, position FROM employees WHERE id = $1',
+        [userId]
       );
-
       if (rows.length === 0) {
         return res.status(404).json({ message: 'Сотрудник не найден' });
       }
-      
-      userData = rows[0];
+      user = rows[0];
+      // Ensure the ID is returned as a number
+      user.id = parseInt(user.id);
+    } else if (role === 'client') {
+      const { rows } = await db.query(
+        'SELECT id, first_name, last_name, contact_info FROM clients WHERE id = $1',
+        [userId]
+      );
+      if (rows.length === 0) {
+        return res.status(404).json({ message: 'Клиент не найден' });
+      }
+      user = rows[0];
+      // Ensure the ID is returned as a number
+      user.id = parseInt(user.id);
+    } else if (role === 'admin') {
+      user = {
+        id: 999,
+        first_name: 'Администратор',
+        last_name: '',
+        role: 'admin'
+      };
     }
-
-    res.json(userData);
+    
+    res.json(user);
   } catch (error) {
-    logger.error('Ошибка при получении профиля:', error);
-    res.status(500).json({ 
-      message: 'Ошибка при получении данных профиля',
-      details: error.message,
-      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined 
-    });
+    logger.error('Profile error:', error);
+    res.status(500).json({ message: 'Ошибка при получении профиля' });
   }
 });
 
 // Update user profile
 router.put('/profile', verifyToken, async (req, res) => {
   try {
-    const { name, contact_info } = req.body;
+    const { first_name, last_name, contact_info } = req.body;
     
     const { rows } = await db.query(
-      'UPDATE employees SET name = $1, contact_info = $2 WHERE id = $3 RETURNING *',
-      [name, contact_info, req.user.userId]
+      'UPDATE employees SET first_name = $1, last_name = $2, contact_info = $3 WHERE id = $4 RETURNING *',
+      [first_name, last_name, contact_info, req.user.userId]
     );
 
     if (rows.length === 0) {

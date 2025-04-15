@@ -12,6 +12,147 @@ const CACHE_TTL = {
   LONG: 60 * 60 * 1000           // 1 hour
 };
 
+// Get all service categories for a salon
+router.get('/service-categories', cache(CACHE_TTL.MEDIUM), async (req, res) => {
+  try {
+    const { salon_id } = req.query;
+    
+    if (!salon_id) {
+      return res.status(400).json({ message: 'Salon ID is required' });
+    }
+    
+    const { rows } = await db.query(
+      `SELECT 
+        c.id, 
+        c.name, 
+        c.description, 
+        c.color, 
+        c.sort_order,
+        c.salon_id
+      FROM service_categories c
+      WHERE c.salon_id = $1
+      ORDER BY c.sort_order ASC, c.name ASC`,
+      [salon_id]
+    );
+    
+    logger.info(`Fetched ${rows.length} service categories for salon #${salon_id}`);
+    res.json(rows);
+  } catch (error) {
+    logger.error('Error fetching service categories:', error);
+    res.status(500).json({ 
+      message: 'Error fetching service categories', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Create service category (admin only)
+router.post('/service-categories', verifyToken, checkRole('admin'), async (req, res) => {
+  try {
+    const { name, description, color, sort_order, salon_id } = req.body;
+    
+    if (!name || !salon_id) {
+      return res.status(400).json({ message: 'Name and salon_id are required' });
+    }
+    
+    const { rows } = await db.query(
+      `INSERT INTO service_categories (name, description, color, sort_order, salon_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [name, description, color, sort_order || 0, salon_id]
+    );
+    
+    // Инвалидируем кэш для списка категорий
+    await invalidate([
+      `/services/service-categories?salon_id=${salon_id}`
+    ])(req, res, () => {});
+    
+    logger.info(`Created new service category "${name}" for salon #${salon_id}`);
+    res.status(201).json(rows[0]);
+  } catch (error) {
+    logger.error('Error creating service category:', error);
+    res.status(500).json({ 
+      message: 'Error creating service category', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Update service category (admin only)
+router.put('/service-categories/:id', verifyToken, checkRole('admin'), async (req, res) => {
+  try {
+    const categoryId = req.params.id;
+    const { name, description, color, sort_order } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+    
+    const { rows } = await db.query(
+      `UPDATE service_categories
+       SET name = $1, description = $2, color = $3, sort_order = $4, updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [name, description, color, sort_order || 0, categoryId]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Service category not found' });
+    }
+    
+    logger.info(`Updated service category #${categoryId}`);
+    res.json(rows[0]);
+  } catch (error) {
+    logger.error(`Error updating service category #${req.params.id}:`, error);
+    res.status(500).json({ 
+      message: 'Error updating service category', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Delete service category (admin only)
+router.delete('/service-categories/:id', verifyToken, checkRole('admin'), async (req, res) => {
+  try {
+    const categoryId = req.params.id;
+    
+    // Check if there are services using this category
+    const { rows: servicesUsingCategory } = await db.query(
+      'SELECT COUNT(*) as count FROM services WHERE category_id = $1',
+      [categoryId]
+    );
+    
+    if (parseInt(servicesUsingCategory[0].count) > 0) {
+      return res.status(400).json({ 
+        message: 'Cannot delete category that is being used by services',
+        services_count: parseInt(servicesUsingCategory[0].count)
+      });
+    }
+    
+    const { rows } = await db.query(
+      'DELETE FROM service_categories WHERE id = $1 RETURNING *',
+      [categoryId]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Service category not found' });
+    }
+    
+    logger.info(`Deleted service category #${categoryId}`);
+    res.json({ message: 'Service category deleted successfully' });
+  } catch (error) {
+    logger.error(`Error deleting service category #${req.params.id}:`, error);
+    res.status(500).json({ 
+      message: 'Error deleting service category', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 // Get all services (for admin panel)
 router.get('/', cache(CACHE_TTL.MEDIUM), async (req, res) => {
   try {
@@ -48,7 +189,7 @@ router.get('/salon/:salonId', cache(CACHE_TTL.MEDIUM), async (req, res) => {
     const { rows } = await db.query(
       `SELECT s.*, 
               json_agg(DISTINCT e.id) as employee_ids,
-              json_agg(DISTINCT e.name) as employee_names
+              json_agg(DISTINCT concat(e.first_name, ' ', e.last_name)) as employee_names
        FROM services s
        LEFT JOIN employee_services es ON s.id = es.service_id
        LEFT JOIN employees e ON es.employee_id = e.id
@@ -76,7 +217,7 @@ router.get('/:id', cache(CACHE_TTL.MEDIUM), async (req, res) => {
     const { rows } = await db.query(
       `SELECT s.*, 
               json_agg(DISTINCT e.id) as employee_ids,
-              json_agg(DISTINCT e.name) as employee_names
+              json_agg(DISTINCT concat(e.first_name, ' ', e.last_name)) as employee_names
        FROM services s
        LEFT JOIN employee_services es ON s.id = es.service_id
        LEFT JOIN employees e ON es.employee_id = e.id

@@ -9,7 +9,8 @@
     "init-db": "cross-env INIT_DATABASE=true node src/index.js",
     "db:init": "node tools/init-db.js",
     "db:reset": "node tools/init-db.js --force",
-    "test": "jest"
+    "test": "jest",
+    "migrate": "node src/db/apply_migrations.js"
   },
   "dependencies": {
     "express": "^4.18.2",
