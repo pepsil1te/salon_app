@@ -218,17 +218,13 @@ const SalonManagement = () => {
       // Группируем дни по одинаковому расписанию
       const scheduleMap = {};
       
+      // Сначала обрабатываем рабочие дни
       Object.entries(workingHours).forEach(([day, hours]) => {
         if (!hours) return; // Пропускаем выходные
         
         // Проверяем, что start и end определены и валидны
         if (!hours.start || !hours.end) {
-          // Если времена не определены, помечаем как закрыто
-          if (!scheduleMap['closed']) {
-            scheduleMap['closed'] = [];
-          }
-          scheduleMap['closed'].push(daysNames[day]);
-          return;
+          return; // Пропускаем некорректные записи
         }
         
         const schedule = `${hours.start}-${hours.end}`;
@@ -239,67 +235,99 @@ const SalonManagement = () => {
       });
       
       // Формируем строку с сгруппированными днями
-      const formattedSchedule = Object.entries(scheduleMap).map(([schedule, days]) => {
-        // Если это закрытые дни
-        if (schedule === 'closed') {
-          return `${days.join(', ')}: выходной`;
-        }
+      const formattedSchedule = [];
+      
+      // Порядок дней недели для сортировки
+      const dayOrder = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      
+      // Обработка графиков работы
+      Object.entries(scheduleMap).forEach(([schedule, days]) => {
+        // Сортируем дни по порядку дней недели
+        days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
         
-        // Находим непрерывные последовательности дней
-        let formattedDays = '';
-        let current = [];
-        
-        days.sort((a, b) => {
-          const dayIndices = { 'Пн': 0, 'Вт': 1, 'Ср': 2, 'Чт': 3, 'Пт': 4, 'Сб': 5, 'Вс': 6 };
-          return dayIndices[a] - dayIndices[b];
-        });
-        
-        for (let i = 0; i < days.length; i++) {
-          const dayIndex = Object.keys(daysNames).find(key => daysNames[key] === days[i]);
-          const nextDayIndex = i < days.length - 1 ? 
-            Object.keys(daysNames).find(key => daysNames[key] === days[i + 1]) : null;
+        // Функция для поиска последовательностей дней
+        const findSequences = (sortedDays) => {
+          const sequences = [];
+          let currentSeq = [sortedDays[0]];
           
-          if (current.length === 0) {
-            current.push(days[i]);
-          } else if (nextDayIndex && parseInt(dayIndex) + 1 === parseInt(nextDayIndex)) {
-            current.push(days[i + 1]);
-            i++;
-          } else {
-            if (current.length > 2) {
-              formattedDays += `${formattedDays ? ', ' : ''}${current[0]}-${current[current.length - 1]}`;
+          for (let i = 1; i < sortedDays.length; i++) {
+            const currentDayIndex = dayOrder.indexOf(sortedDays[i-1]);
+            const nextDayIndex = dayOrder.indexOf(sortedDays[i]);
+            
+            if (nextDayIndex - currentDayIndex === 1) {
+              // Последовательные дни
+              currentSeq.push(sortedDays[i]);
             } else {
-              formattedDays += `${formattedDays ? ', ' : ''}${current.join(', ')}`;
+              // Начинаем новую последовательность
+              sequences.push(currentSeq);
+              currentSeq = [sortedDays[i]];
             }
-            current = [];
-            i--;
           }
-        }
+          
+          sequences.push(currentSeq);
+          return sequences;
+        };
         
-        if (current.length > 0) {
-          if (current.length > 2) {
-            formattedDays += `${formattedDays ? ', ' : ''}${current[0]}-${current[current.length - 1]}`;
+        const daySequences = findSequences(days);
+        
+        // Форматируем последовательности
+        const formattedDays = daySequences.map(seq => {
+          if (seq.length >= 3) {
+            return `${seq[0]}-${seq[seq.length-1]}`;
           } else {
-            formattedDays += `${formattedDays ? ', ' : ''}${current.join(', ')}`;
+            return seq.join(', ');
           }
-        }
+        }).join(', ');
         
-        // Форматируем итоговую строку
-        return `${formattedDays}: ${schedule}`;
+        formattedSchedule.push(`${formattedDays}: ${schedule}`);
       });
       
-      // Добавляем выходные дни, если есть
+      // Добавляем выходные дни
       const closedDays = Object.entries(workingHours)
         .filter(([_, hours]) => !hours)
-        .map(([day]) => daysNames[day]);
+        .map(([day]) => daysNames[day])
+        .sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
         
-      if (closedDays.length > 0 && !scheduleMap['closed']) {
-        formattedSchedule.push(`${closedDays.join(', ')}: выходной`);
+      if (closedDays.length > 0) {
+        // Находим последовательности выходных дней
+        const daySequences = (() => {
+          const sequences = [];
+          let currentSeq = [closedDays[0]];
+          
+          for (let i = 1; i < closedDays.length; i++) {
+            const currentDayIndex = dayOrder.indexOf(closedDays[i-1]);
+            const nextDayIndex = dayOrder.indexOf(closedDays[i]);
+            
+            if (nextDayIndex - currentDayIndex === 1) {
+              // Последовательные дни
+              currentSeq.push(closedDays[i]);
+            } else {
+              // Начинаем новую последовательность
+              sequences.push(currentSeq);
+              currentSeq = [closedDays[i]];
+            }
+          }
+          
+          sequences.push(currentSeq);
+          return sequences;
+        })();
+        
+        // Форматируем последовательности
+        const formattedClosedDays = daySequences.map(seq => {
+          if (seq.length >= 3) {
+            return `${seq[0]}-${seq[seq.length-1]}`;
+          } else {
+            return seq.join(', ');
+          }
+        }).join(', ');
+        
+        formattedSchedule.push(`${formattedClosedDays}: выходной`);
       }
       
-      return formattedSchedule.join(', ');
+      return formattedSchedule.join('; ');
     } catch (error) {
-      console.error('Ошибка при форматировании рабочих часов:', error);
-      return String(workingHours) || 'Нет данных';
+      console.error('Ошибка при форматировании времени работы:', error);
+      return 'Ошибка при отображении времени работы';
     }
   };
 
@@ -327,9 +355,16 @@ const SalonManagement = () => {
 
   // Мутация для создания салона
   const createSalonMutation = useMutation(
-    (salonData) => salonApi.create(salonData),
+    (salonData) => {
+      console.log("Вызов createSalonMutation.mutate с данными:", JSON.stringify(salonData, null, 2));
+      return salonApi.create(salonData);
+    },
     {
-      onSuccess: () => {
+      onMutate: (data) => {
+        console.log("onMutate начало мутации с данными:", JSON.stringify(data, null, 2));
+      },
+      onSuccess: (response) => {
+        console.log("onSuccess - салон успешно создан:", JSON.stringify(response, null, 2));
         queryClient.invalidateQueries(['salons']);
         handleCloseDialog();
         setSnackbar({
@@ -339,11 +374,19 @@ const SalonManagement = () => {
         });
       },
       onError: (error) => {
+        console.error("onError - ошибка при создании салона:", error);
+        console.error("Детали ошибки:", error.response?.data || error.message);
         setSnackbar({
           open: true,
           message: `Ошибка при создании салона: ${error.message}`,
           severity: 'error'
         });
+      },
+      onSettled: (data, error) => {
+        console.log("onSettled - мутация завершена", data ? "успешно" : "с ошибкой");
+        if (error) {
+          console.error("Ошибка при выполнении мутации:", error);
+        }
       }
     }
   );
@@ -430,51 +473,56 @@ const SalonManagement = () => {
 
   // Валидация формы
   const validateForm = () => {
+    console.log("validateForm: Запуск валидации формы");
     const errors = {};
     
-    if (!salonData.name.trim()) {
+    // Проверяем обязательные поля
+    if (!salonData.name || !salonData.name.trim()) {
       errors.name = 'Название салона обязательно';
     }
     
-    if (!salonData.address.trim()) {
+    if (!salonData.address || !salonData.address.trim()) {
       errors.address = 'Адрес салона обязателен';
     }
     
-    if (!salonData.phone.trim()) {
+    if (!salonData.phone || !salonData.phone.trim()) {
       errors.phone = 'Телефон салона обязателен';
     } else if (!/^\+?[0-9\s-()]{10,17}$/.test(salonData.phone)) {
       errors.phone = 'Неверный формат телефона';
     }
     
-    // Проверяем рабочие часы - теперь это объект, а не строка
-    if (typeof salonData.working_hours === 'string') {
-      // Если по какой-то причине это всё еще строка, проверяем как раньше
-      if (!salonData.working_hours.trim()) {
-        errors.working_hours = 'Часы работы обязательны';
-      }
-    } else if (!salonData.working_hours || typeof salonData.working_hours !== 'object') {
-      // Проверка на null/undefined или неверный тип
-      errors.working_hours = 'Часы работы обязательны';
-    } else {
-      // Проверяем, есть ли хотя бы один рабочий день
-      const hasWorkingDay = Object.values(salonData.working_hours).some(hours => hours !== null);
-      if (!hasWorkingDay) {
-        errors.working_hours = 'Должен быть указан хотя бы один рабочий день';
-      }
+    // Если у нас есть ошибки, обновляем состояние и возвращаем false
+    if (Object.keys(errors).length > 0) {
+      console.log("validateForm: Есть ошибки валидации", errors);
+      setValidationErrors(errors);
+      return false;
     }
     
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    console.log("validateForm: Валидация прошла успешно");
+    return true;
   };
 
   // Обработчик открытия диалога добавления салона
   const handleOpenAddDialog = () => {
+    console.log("handleOpenAddDialog: Открытие диалога добавления салона");
     setDialogMode('add');
+    
+    // Инициализируем данные салона с пустыми значениями, но корректной структурой
+    const defaultWorkingHours = {
+      '1': { start: "09:00", end: "18:00" }, // Пн
+      '2': { start: "09:00", end: "18:00" }, // Вт
+      '3': { start: "09:00", end: "18:00" }, // Ср
+      '4': { start: "09:00", end: "18:00" }, // Чт
+      '5': { start: "09:00", end: "18:00" }, // Пт
+      '6': null, // Сб
+      '0': null  // Вс
+    };
+    
     setSalonData({
       name: '',
       address: '',
       phone: '',
-      working_hours: '',
+      working_hours: defaultWorkingHours,
       description: '',
       status: 'active',
       email: '',
@@ -483,8 +531,10 @@ const SalonManagement = () => {
       logo: '',
       cover_image: ''
     });
+    
     setValidationErrors({});
     setOpenDialog(true);
+    console.log("handleOpenAddDialog: Диалог открыт, данные инициализированы");
   };
 
   // Обработчик открытия диалога редактирования салона
@@ -949,7 +999,10 @@ const SalonManagement = () => {
 
     // Получение значений слайдера для конкретного дня
     const getSliderValue = (day) => {
-      if (!workingHours[day]) return [0, 0];
+      // Проверяем, существует ли день и его свойства start и end
+      if (!workingHours[day] || !workingHours[day].start || !workingHours[day].end) {
+        return [0, 0];
+      }
       return [
         timeToMinutes(workingHours[day].start),
         timeToMinutes(workingHours[day].end)
@@ -1274,8 +1327,8 @@ const SalonManagement = () => {
                             position: 'absolute',
                             top: 0,
                             bottom: 0,
-                            left: `${((timeToMinutes(workingHours[day].start)) / (17 * 60)) * 100}%`,
-                            width: `${((timeToMinutes(workingHours[day].end) - timeToMinutes(workingHours[day].start)) / (17 * 60)) * 100}%`,
+                            left: `${((timeToMinutes(workingHours[day]?.start || '09:00')) / (17 * 60)) * 100}%`,
+                            width: `${((timeToMinutes(workingHours[day]?.end || '18:00') - timeToMinutes(workingHours[day]?.start || '09:00')) / (17 * 60)) * 100}%`,
                             background: 'linear-gradient(90deg, rgba(76,175,80,0.5) 0%, rgba(76,175,80,0.7) 100%)',
                             borderRadius: 1,
                             display: 'flex',
@@ -1292,7 +1345,7 @@ const SalonManagement = () => {
                               fontSize: '0.75rem'
                             }}
                           >
-                            {`${workingHours[day].start} - ${workingHours[day].end}`}
+                            {`${workingHours[day]?.start || '09:00'} - ${workingHours[day]?.end || '18:00'}`}
                           </Typography>
                         </Box>
                       </Box>
@@ -1637,35 +1690,104 @@ const SalonManagement = () => {
   };
   
   const handleSaveSalon = () => {
-    if (validateForm()) {
-      // Преобразование данных в формат, ожидаемый сервером
-      const preparedData = {
-        name: salonData.name,
-        address: salonData.address,
-        // Формируем объект контактной информации
-        contact_info: {
-          phone: salonData.phone,
+    console.log("handleSaveSalon: Начало сохранения салона");
+    
+    try {
+      if (validateForm()) {
+        console.log("handleSaveSalon: Валидация прошла успешно, формируем данные");
+        
+        // Убедимся, что contact_info - это объект
+        let contact_info = {
+          phone: salonData.phone || '',
           email: salonData.email || '',
           website: salonData.website || ''
-        },
-        // Преобразуем строку рабочих часов в объект
-        working_hours: parseWorkingHoursFromForm(salonData.working_hours),
-        // Добавляем остальные поля, если они есть
-        ...(salonData.status && { status: salonData.status }),
-        ...(salonData.image_url && { image_url: salonData.image_url }),
-        ...(salonData.description && { description: salonData.description }),
-        is_active: salonData.is_active === true, // Ensure it's a boolean value
-        ...(salonData.logo && { logo: salonData.logo }),
-        ...(salonData.cover_image && { cover_image: salonData.cover_image })
-      };
+        };
+        
+        // Убедимся, что working_hours - это объект, содержащий расписание для дней недели
+        let working_hours = {};
+        
+        if (typeof salonData.working_hours === 'string') {
+          // Если это строка, попробуем преобразовать в объект через parseWorkingHoursFromForm
+          working_hours = parseWorkingHoursFromForm(salonData.working_hours);
+        } else if (typeof salonData.working_hours === 'object' && salonData.working_hours !== null) {
+          // Если это уже объект, используем его
+          working_hours = salonData.working_hours;
+        } else {
+          // Создаем объект с расписанием на неделю в нужном формате
+          working_hours = {
+            '1': { start: "09:00", end: "18:00" }, // Пн
+            '2': { start: "09:00", end: "18:00" }, // Вт
+            '3': { start: "09:00", end: "18:00" }, // Ср
+            '4': { start: "09:00", end: "18:00" }, // Чт
+            '5': { start: "09:00", end: "18:00" }, // Пт
+            '6': null, // Сб
+            '0': null  // Вс
+          };
+        }
+        
+        console.log("handleSaveSalon: contact_info:", contact_info);
+        console.log("handleSaveSalon: working_hours:", working_hours);
+        
+        // Преобразование данных в формат, ожидаемый сервером
+        const preparedData = {
+          name: salonData.name,
+          address: salonData.address,
+          // Используем подготовленные объекты
+          contact_info: contact_info,
+          working_hours: working_hours,
+          // Добавляем остальные поля, если они есть
+          ...(salonData.status && { status: salonData.status }),
+          ...(salonData.image_url && { image_url: salonData.image_url }),
+          ...(salonData.description && { description: salonData.description }),
+          is_active: salonData.is_active === true, // Ensure it's a boolean value
+          ...(salonData.logo && { logo: salonData.logo }),
+          ...(salonData.cover_image && { cover_image: salonData.cover_image })
+        };
 
-      console.log('Отправляемые данные:', preparedData);
+        console.log('handleSaveSalon: Отправляемые данные:', JSON.stringify(preparedData, null, 2));
 
-      if (dialogMode === 'add') {
-        createSalonMutation.mutate(preparedData);
+        // Показываем индикатор загрузки
+        setIsSaving(true);
+
+        // Добавляем небольшую задержку для уверенности, что UI успеет обновиться
+        setTimeout(() => {
+          if (dialogMode === 'add') {
+            console.log("handleSaveSalon: Режим добавления, вызываем createSalonMutation.mutate");
+            try {
+              createSalonMutation.mutate(preparedData, {
+                onSettled: () => {
+                  setIsSaving(false);
+                }
+              });
+            } catch (error) {
+              console.error("handleSaveSalon: Ошибка при вызове createSalonMutation.mutate", error);
+              setIsSaving(false);
+            }
+          } else {
+            console.log("handleSaveSalon: Режим редактирования, вызываем updateSalonMutation.mutate");
+            try {
+              updateSalonMutation.mutate({ id: selectedSalonId, data: preparedData }, {
+                onSettled: () => {
+                  setIsSaving(false);
+                }
+              });
+            } catch (error) {
+              console.error("handleSaveSalon: Ошибка при вызове updateSalonMutation.mutate", error);
+              setIsSaving(false);
+            }
+          }
+        }, 100);
       } else {
-        updateSalonMutation.mutate({ id: selectedSalonId, data: preparedData });
+        console.log("handleSaveSalon: Валидация не прошла, сохранение отменено");
       }
+    } catch (error) {
+      console.error("handleSaveSalon: Необработанная ошибка", error);
+      setIsSaving(false);
+      setSnackbar({
+        open: true,
+        message: `Ошибка при сохранении салона: ${error.message}`,
+        severity: 'error'
+      });
     }
   };
 
@@ -1673,6 +1795,8 @@ const SalonManagement = () => {
   const handleDeleteSalon = () => {
     if (selectedSalonId) {
       deleteSalonMutation.mutate(selectedSalonId);
+      // Закрываем диалог управления салоном после удаления
+      handleCloseManageDialog();
     }
   };
 
@@ -1837,6 +1961,12 @@ const SalonManagement = () => {
     }
   };
 
+  const handleAddButtonClick = () => {
+    console.log("handleAddButtonClick: Нажата кнопка Добавить");
+    // Вызов стандартного обработчика
+    handleOpenAddDialog();
+  };
+
   if (isLoadingSalons) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -1885,7 +2015,7 @@ const SalonManagement = () => {
           <Button 
             variant="contained" 
             startIcon={<AddIcon />}
-            onClick={handleOpenAddDialog}
+            onClick={handleAddButtonClick}
           sx={{ 
             px: 3, 
             py: 1.2,
@@ -3450,7 +3580,7 @@ const SalonManagement = () => {
           <Button 
             variant="contained" 
             onClick={handleSaveSalon}
-            disabled={createSalonMutation.isLoading || updateSalonMutation.isLoading}
+            disabled={isSaving || createSalonMutation.isLoading || updateSalonMutation.isLoading}
             sx={{
               borderRadius: 2,
               px: 3,
@@ -3465,7 +3595,9 @@ const SalonManagement = () => {
             }}
           >
             {dialogMode === 'add' ? 'Добавить' : 'Сохранить'}
-            {(createSalonMutation.isLoading || updateSalonMutation.isLoading) && <CircularProgress size={20} sx={{ ml: 1, color: 'white' }} />}
+            {(isSaving || createSalonMutation.isLoading || updateSalonMutation.isLoading) && 
+              <CircularProgress size={20} sx={{ ml: 1, color: 'white' }} />
+            }
           </Button>
         </Box>
       </Dialog>

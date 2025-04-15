@@ -14,8 +14,22 @@ class SalonsApi extends ApiClient {
    * @returns {Promise<Object>} Созданный салон
    */
   async create(data) {
-    console.log('Создание салона с данными:', JSON.stringify(data, null, 2));
-    return super.create(data);
+    console.log('SalonsApi.create: Запрос на создание салона с данными:', JSON.stringify(data, null, 2));
+    try {
+      const result = await super.create(data);
+      console.log('SalonsApi.create: Салон успешно создан:', JSON.stringify(result, null, 2));
+      return result;
+    } catch (error) {
+      console.error('SalonsApi.create: Ошибка при создании салона:', error);
+      if (error.response) {
+        console.error('SalonsApi.create: Детали ошибки от сервера:', {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+      }
+      throw error;
+    }
   }
 
   /**

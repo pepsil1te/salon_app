@@ -11747,3 +11747,94 @@
 {"level":"info","message":"Created new service category \"ауау\" for salon #1","service":"salon-api","timestamp":"2025-04-15 12:06:38"}
 {"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/services/service-categories?salon_id=1&_t=1744707998278","service":"salon-api","timestamp":"2025-04-15 12:06:38"}
 {"level":"info","message":"Fetched 4 service categories for salon #1","service":"salon-api","timestamp":"2025-04-15 12:06:38"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/employees/2?_t=1744708008273","service":"salon-api","timestamp":"2025-04-15 12:06:48"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/employees/2/schedule?start_date=2025-04-14&end_date=2025-04-20&_t=1744708008273","service":"salon-api","timestamp":"2025-04-15 12:06:48"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:06:59"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/dashboard?startDate=2025-04-01&endDate=2025-04-30&_t=1744708021373","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/employees?startDate=2025-04-01&endDate=2025-04-30&_t=1744708021373","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/services?startDate=2025-04-01&endDate=2025-04-30&_t=1744708021373","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/financial?startDate=2025-04-01&endDate=2025-04-30&_t=1744708021373","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:07:01"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:07:31"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:07:31"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:07:31"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:07:31"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/auth/profile?_t=1744708973088","service":"salon-api","timestamp":"2025-04-15 12:22:53"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:22:53"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/salons?_t=1744708973142","service":"salon-api","timestamp":"2025-04-15 12:22:53"}
+{"level":"info","message":"Получение списка всех салонов","service":"salon-api","timestamp":"2025-04-15 12:22:53"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:22:54"}
+{"level":"info","message":"Получено 2 салонов из базы данных","service":"salon-api","timestamp":"2025-04-15 12:22:54"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings?_t=1744708975745","service":"salon-api","timestamp":"2025-04-15 12:22:55"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:22:55"}
+{"level":"info","message":"Получение настроек","service":"salon-api","timestamp":"2025-04-15 12:22:55"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings/users?_t=1744708975745","service":"salon-api","timestamp":"2025-04-15 12:22:55"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:22:55"}
+{"level":"info","message":"Получение списка всех пользователей для настроек","service":"salon-api","timestamp":"2025-04-15 12:22:55"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"code":"42703","file":"parse_relation.c","length":104,"level":"error","line":"3716","message":"Database query error (attempt 1/5): column \"name\" does not exist","name":"error","position":"37","routine":"errorMissingColumn","service":"salon-api","severity":"ERROR","stack":"error: column \"name\" does not exist\n    at C:\\Users\\Сергей\\Documents\\slaon_app\\node_modules\\pg\\lib\\client.js:545:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Object.executeQuery [as query] (C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\config\\database.js:52:18)\n    at async C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\routes\\settings.js:88:33","timestamp":"2025-04-15 12:22:56"}
+{"level":"error","message":"Ошибка при получении пользователей: column \"name\" does not exist","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/dashboard?startDate=2025-04-01&endDate=2025-04-30&_t=1744708976484","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/employees?startDate=2025-04-01&endDate=2025-04-30&_t=1744708976484","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/services?startDate=2025-04-01&endDate=2025-04-30&_t=1744708976484","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/financial?startDate=2025-04-01&endDate=2025-04-30&_t=1744708976484","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:22:56"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings?_t=1744708993467","service":"salon-api","timestamp":"2025-04-15 12:23:13"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:23:13"}
+{"level":"info","message":"Получение настроек","service":"salon-api","timestamp":"2025-04-15 12:23:13"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings/users?_t=1744708993467","service":"salon-api","timestamp":"2025-04-15 12:23:13"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:23:13"}
+{"level":"info","message":"Получение списка всех пользователей для настроек","service":"salon-api","timestamp":"2025-04-15 12:23:13"}
+{"code":"42703","file":"parse_relation.c","length":104,"level":"error","line":"3716","message":"Database query error (attempt 1/5): column \"name\" does not exist","name":"error","position":"37","routine":"errorMissingColumn","service":"salon-api","severity":"ERROR","stack":"error: column \"name\" does not exist\n    at C:\\Users\\Сергей\\Documents\\slaon_app\\node_modules\\pg\\lib\\client.js:545:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Object.executeQuery [as query] (C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\config\\database.js:52:18)\n    at async C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\routes\\settings.js:88:33","timestamp":"2025-04-15 12:23:13"}
+{"level":"error","message":"Ошибка при получении пользователей: column \"name\" does not exist","service":"salon-api","timestamp":"2025-04-15 12:23:13"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings?_t=1744708995886","service":"salon-api","timestamp":"2025-04-15 12:23:15"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:23:15"}
+{"level":"info","message":"Получение настроек","service":"salon-api","timestamp":"2025-04-15 12:23:15"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings/users?_t=1744708995886","service":"salon-api","timestamp":"2025-04-15 12:23:15"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:23:15"}
+{"level":"info","message":"Получение списка всех пользователей для настроек","service":"salon-api","timestamp":"2025-04-15 12:23:15"}
+{"code":"42703","file":"parse_relation.c","length":104,"level":"error","line":"3716","message":"Database query error (attempt 1/5): column \"name\" does not exist","name":"error","position":"37","routine":"errorMissingColumn","service":"salon-api","severity":"ERROR","stack":"error: column \"name\" does not exist\n    at C:\\Users\\Сергей\\Documents\\slaon_app\\node_modules\\pg\\lib\\client.js:545:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Object.executeQuery [as query] (C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\config\\database.js:52:18)\n    at async C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\routes\\settings.js:88:33","timestamp":"2025-04-15 12:23:16"}
+{"level":"error","message":"Ошибка при получении пользователей: column \"name\" does not exist","service":"salon-api","timestamp":"2025-04-15 12:23:16"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:23:26"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:23:26"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:23:46"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:23:46"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/services?_t=1744709145393","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"info","message":"Запрос списка всех услуг","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/employees?_t=1744709145393","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/services/service-categories?salon_id=1&_t=1744709145393","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"info","message":"Получено 6 услуг из базы данных","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"info","message":"Fetched 4 service categories for salon #1","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"info","message":"Получено 5 сотрудников из базы данных","service":"salon-api","timestamp":"2025-04-15 12:25:45"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:26:15"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:26:15"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:26:15"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/statistics/financial?startDate=2025-04-01&endDate=2025-04-30&_t=1744709195037","service":"salon-api","timestamp":"2025-04-15 12:26:35"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:26:35"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:26:35"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:27:05"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings?_t=1744709564000","service":"salon-api","timestamp":"2025-04-15 12:32:44"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:32:44"}
+{"level":"info","message":"Получение настроек","service":"salon-api","timestamp":"2025-04-15 12:32:44"}
+{"headers":{"user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"},"ip":"::1","level":"info","message":"GET /api/settings/users?_t=1744709564000","service":"salon-api","timestamp":"2025-04-15 12:32:44"}
+{"level":"info","message":"Обнаружен специальный токен администратора","service":"salon-api","timestamp":"2025-04-15 12:32:44"}
+{"level":"info","message":"Получение списка всех пользователей для настроек","service":"salon-api","timestamp":"2025-04-15 12:32:44"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:32:46"}
+{"level":"debug","message":"New client connected to the pool","service":"salon-api","timestamp":"2025-04-15 12:32:46"}
+{"code":"42703","file":"parse_relation.c","length":104,"level":"error","line":"3716","message":"Database query error (attempt 1/5): column \"name\" does not exist","name":"error","position":"37","routine":"errorMissingColumn","service":"salon-api","severity":"ERROR","stack":"error: column \"name\" does not exist\n    at C:\\Users\\Сергей\\Documents\\slaon_app\\node_modules\\pg\\lib\\client.js:545:17\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async Object.executeQuery [as query] (C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\config\\database.js:52:18)\n    at async C:\\Users\\Сергей\\Documents\\slaon_app\\backend\\src\\routes\\settings.js:88:33","timestamp":"2025-04-15 12:32:46"}
+{"level":"error","message":"Ошибка при получении пользователей: column \"name\" does not exist","service":"salon-api","timestamp":"2025-04-15 12:32:46"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:33:16"}
+{"level":"debug","message":"Client removed from pool","service":"salon-api","timestamp":"2025-04-15 12:33:16"}

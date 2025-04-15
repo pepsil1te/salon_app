@@ -107,15 +107,27 @@ export class ApiClient {
    */
   async create(data) {
     try {
-      // console.log(`📝 Создание нового ${this.resourceName}а:`, data);
+      console.log(`ApiClient.create: Создание нового ${this.resourceName}а`, JSON.stringify(data, null, 2));
+      console.log(`ApiClient.create: Запрос на URL: ${this.basePath}`);
       
-      const response = await api.post(this.basePath, data);
+      const response = await this.api.post(this.basePath, data);
       
-      // console.log(`✅ ${this.resourceName} успешно создан:`, response.data);
+      console.log(`ApiClient.create: ${this.resourceName} успешно создан:`, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      console.error(`❌ Ошибка при создании ${this.resourceName}а:`, error);
-      console.error('Детали ошибки:', error.response?.data || error.message);
+      console.error(`ApiClient.create: Ошибка при создании ${this.resourceName}а:`, error);
+      console.error('ApiClient.create: Детали ошибки:', error.response?.data || error.message);
+      
+      if (error.response) {
+        console.error('ApiClient.create: Статус ответа:', error.response.status);
+        console.error('ApiClient.create: Заголовки ответа:', error.response.headers);
+        console.error('ApiClient.create: Тело ответа:', error.response.data);
+      } else if (error.request) {
+        console.error('ApiClient.create: Запрос был отправлен, но ответ не получен:', error.request);
+      } else {
+        console.error('ApiClient.create: Ошибка при настройке запроса:', error.message);
+      }
+      
       throw error;
     }
   }
