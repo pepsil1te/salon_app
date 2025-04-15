@@ -498,12 +498,27 @@ router.get('/profile', verifyToken, async (req, res) => {
       // Ensure the ID is returned as a number
       user.id = parseInt(user.id);
     } else if (role === 'admin') {
-      user = {
-        id: 999,
-        first_name: 'Администратор',
-        last_name: '',
-        role: 'admin'
-      };
+      // For admin, use the actual admin entry from the employees table
+      const { rows } = await db.query(
+        'SELECT id, first_name, last_name, role, contact_info, position FROM employees WHERE role = $1 AND id = $2',
+        ['admin', userId]
+      );
+      
+      // If no row found, use default admin values without salon_id
+      if (rows.length === 0) {
+        user = {
+          id: userId,
+          first_name: 'Администратор',
+          last_name: 'Системы',
+          role: 'admin',
+          salon_id: null // Admin is not tied to any salon
+        };
+      } else {
+        user = rows[0];
+        // Admin should not have a salon_id
+        user.salon_id = null;
+        user.id = parseInt(user.id);
+      }
     }
     
     res.json(user);

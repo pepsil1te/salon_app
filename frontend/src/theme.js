@@ -3,7 +3,7 @@ import { createTheme } from '@mui/material/styles';
 /**
  * Цветовая палитра приложения
  */
-const palette = {
+const defaultPalette = {
   primary: {
     main: '#00838f',
     light: '#4fb3bf',
@@ -134,132 +134,245 @@ const typography = {
 };
 
 /**
- * Настройки форм компонентов
+ * Получает базовый набор компонентов
+ * @param {Object} appearanceSettings - настройки внешнего вида из пользовательских настроек
+ * @param {Object} palette - текущая палитра цветов
  */
-const components = {
-  MuiButton: {
-    styleOverrides: {
-      root: {
-        borderRadius: 8,
-        padding: '8px 16px',
-      },
-      containedPrimary: {
-        '&:hover': {
-          backgroundColor: palette.primary.dark,
-        },
-      },
-      containedSecondary: {
-        '&:hover': {
-          backgroundColor: palette.secondary.dark,
-        },
-      },
-    },
-  },
-  MuiCard: {
-    styleOverrides: {
-      root: {
-        borderRadius: 12,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-      },
-    },
-  },
-  MuiCardContent: {
-    styleOverrides: {
-      root: {
-        padding: 24,
-        '&:last-child': {
-          paddingBottom: 24,
+const getComponents = (appearanceSettings = {}, palette) => {
+  // Получаем настройки из объекта или используем значения по умолчанию
+  const enableAnimations = appearanceSettings.enableAnimations !== false;
+  const enableBlur = appearanceSettings.enableBlur !== false;
+  const roundedCorners = appearanceSettings.roundedCorners !== false;
+
+  // Базовый радиус закругления в зависимости от настроек
+  const baseRadius = roundedCorners ? 12 : 4;
+
+  return {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          transition: enableAnimations 
+            ? 'background-color 0.3s ease-in-out, color 0.3s ease-in-out' 
+            : 'none',
         },
       },
     },
-  },
-  MuiPaper: {
-    styleOverrides: {
-      root: {
-        borderRadius: 12,
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: baseRadius,
+          padding: `8px 16px`,
+          transition: enableAnimations 
+            ? 'all 0.2s ease-in-out' 
+            : 'none',
+        },
+        containedPrimary: {
+          '&:hover': {
+            backgroundColor: palette.primary.dark,
+            transform: enableAnimations ? 'translateY(-1px)' : 'none',
+            boxShadow: enableAnimations ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+          },
+        },
+        containedSecondary: {
+          '&:hover': {
+            backgroundColor: palette.secondary.dark,
+            transform: enableAnimations ? 'translateY(-1px)' : 'none',
+            boxShadow: enableAnimations ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+          },
+        },
       },
     },
-  },
-  MuiDialog: {
-    styleOverrides: {
-      paper: {
-        borderRadius: 12,
-        boxShadow: '0 24px 48px rgba(0,0,0,0.10)',
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: baseRadius,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+          transition: enableAnimations ? 'all 0.3s ease-in-out' : 'none',
+          backdropFilter: enableBlur ? 'blur(8px)' : 'none',
+          ...(enableAnimations && {
+            '&:hover': {
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              transform: 'translateY(-4px)'
+            }
+          })
+        },
       },
     },
-  },
-  MuiTableCell: {
-    styleOverrides: {
-      root: {
-        padding: '16px 24px',
-      },
-      head: {
-        fontWeight: 600,
-        backgroundColor: palette.grey[50],
-      },
-    },
-  },
-  MuiChip: {
-    styleOverrides: {
-      root: {
-        fontSize: '0.875rem',
-        fontWeight: 500,
-        borderRadius: 16,
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: 24,
+          '&:last-child': {
+            paddingBottom: 24,
+          },
+        },
       },
     },
-  },
-  MuiLinearProgress: {
-    styleOverrides: {
-      root: {
-        borderRadius: 4,
-        height: 6,
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: baseRadius,
+        },
       },
     },
-  },
-  MuiOutlinedInput: {
-    styleOverrides: {
-      root: {
-        borderRadius: 8,
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          borderRadius: baseRadius,
+          boxShadow: '0 24px 48px rgba(0,0,0,0.10)',
+          backdropFilter: enableBlur ? 'blur(12px)' : 'none',
+        },
       },
     },
-  },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          padding: `16px 24px`,
+        },
+        head: {
+          fontWeight: 600,
+          backgroundColor: palette.grey[50],
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          borderRadius: roundedCorners ? 16 : 4,
+          transition: enableAnimations ? 'all 0.2s ease' : 'none',
+        },
+      },
+    },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          borderRadius: baseRadius / 2,
+          height: 6,
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: baseRadius,
+          transition: enableAnimations ? 'all 0.2s ease' : 'none',
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiInputBase-root': {
+            borderRadius: baseRadius,
+          }
+        }
+      }
+    },
+    MuiListItem: {
+      styleOverrides: {
+        root: {
+          transition: enableAnimations ? 'background-color 0.2s ease' : 'none',
+          borderRadius: baseRadius / 2,
+        }
+      }
+    },
+    MuiSwitch: {
+      styleOverrides: {
+        root: {
+          transition: enableAnimations ? 'all 0.2s ease' : 'none',
+        }
+      }
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backdropFilter: enableBlur ? 'blur(10px)' : 'none',
+          borderRadius: `${baseRadius}px ${baseRadius}px 0 0`,
+        }
+      }
+    },
+    MuiBackdrop: {
+      styleOverrides: {
+        root: {
+          backdropFilter: enableBlur ? 'blur(4px)' : 'none'
+        }
+      }
+    }
+  };
 };
 
 /**
- * Создание и экспорт темы
+ * Создание и экспорт функции создания темы на основе настроек внешнего вида
  */
-export const theme = createTheme({
-  palette,
-  typography,
-  components,
-  shape: {
-    borderRadius: 8,
-  },
-  shadows: [
-    'none',
-    '0 2px 4px rgba(0,0,0,0.05)',
-    '0 4px 8px rgba(0,0,0,0.05)',
-    '0 6px 12px rgba(0,0,0,0.05)',
-    '0 8px 16px rgba(0,0,0,0.05)',
-    '0 12px 24px rgba(0,0,0,0.05)',
-    '0 16px 32px rgba(0,0,0,0.05)',
-    '0 20px 40px rgba(0,0,0,0.05)',
-    '0 24px 48px rgba(0,0,0,0.05)',
-    '0 28px 56px rgba(0,0,0,0.05)',
-    '0 32px 64px rgba(0,0,0,0.05)',
-    '0 36px 72px rgba(0,0,0,0.05)',
-    '0 40px 80px rgba(0,0,0,0.05)',
-    '0 44px 88px rgba(0,0,0,0.05)',
-    '0 48px 96px rgba(0,0,0,0.05)',
-    '0 52px 104px rgba(0,0,0,0.05)',
-    '0 56px 112px rgba(0,0,0,0.05)',
-    '0 60px 120px rgba(0,0,0,0.05)',
-    '0 64px 128px rgba(0,0,0,0.05)',
-    '0 68px 136px rgba(0,0,0,0.05)',
-    '0 72px 144px rgba(0,0,0,0.05)',
-    '0 76px 152px rgba(0,0,0,0.05)',
-    '0 80px 160px rgba(0,0,0,0.05)',
-    '0 84px 168px rgba(0,0,0,0.05)',
-    '0 88px 176px rgba(0,0,0,0.08)',
-  ],
-}); 
+export const createAppTheme = (appearanceSettings = {}) => {
+  // Создаем персонализированную палитру на основе настроек
+  const mode = appearanceSettings.palette?.mode || 'light';
+  
+  const palette = {
+    ...defaultPalette,
+    mode: mode, // Явно устанавливаем режим в корне палитры
+    primary: {
+      ...defaultPalette.primary,
+      main: appearanceSettings.primaryColor || defaultPalette.primary.main
+    },
+    secondary: {
+      ...defaultPalette.secondary,
+      main: appearanceSettings.secondaryColor || defaultPalette.secondary.main
+    },
+    background: {
+      default: mode === 'dark' ? '#121212' : '#f5f5f5',
+      paper: mode === 'dark' ? '#1e1e1e' : '#ffffff',
+    },
+    text: {
+      primary: mode === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.87)',
+      secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+    }
+  };
+
+  // Формируем компоненты на основе настроек внешнего вида
+  const components = getComponents(appearanceSettings, palette);
+
+  // Базовый радиус закругления для shape (общее значение)
+  const baseRadius = appearanceSettings.roundedCorners !== false ? 8 : 4;
+
+  // Создаем тему на основе настроек
+  return createTheme({
+    palette,
+    typography,
+    components,
+    shape: {
+      borderRadius: baseRadius,
+    },
+    shadows: [
+      'none',
+      '0 2px 4px rgba(0,0,0,0.05)',
+      '0 4px 8px rgba(0,0,0,0.05)',
+      '0 6px 12px rgba(0,0,0,0.05)',
+      '0 8px 16px rgba(0,0,0,0.05)',
+      '0 12px 24px rgba(0,0,0,0.05)',
+      '0 16px 32px rgba(0,0,0,0.05)',
+      '0 20px 40px rgba(0,0,0,0.05)',
+      '0 24px 48px rgba(0,0,0,0.05)',
+      '0 28px 56px rgba(0,0,0,0.05)',
+      '0 32px 64px rgba(0,0,0,0.05)',
+      '0 36px 72px rgba(0,0,0,0.05)',
+      '0 40px 80px rgba(0,0,0,0.05)',
+      '0 44px 88px rgba(0,0,0,0.05)',
+      '0 48px 96px rgba(0,0,0,0.05)',
+      '0 52px 104px rgba(0,0,0,0.05)',
+      '0 56px 112px rgba(0,0,0,0.05)',
+      '0 60px 120px rgba(0,0,0,0.05)',
+      '0 64px 128px rgba(0,0,0,0.05)',
+      '0 68px 136px rgba(0,0,0,0.05)',
+      '0 72px 144px rgba(0,0,0,0.05)',
+      '0 76px 152px rgba(0,0,0,0.05)',
+      '0 80px 160px rgba(0,0,0,0.05)',
+      '0 84px 168px rgba(0,0,0,0.05)',
+    ],
+  });
+};
+
+// Экспортируем тему по умолчанию (для обратной совместимости)
+export const theme = createAppTheme(); 

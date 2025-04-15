@@ -17,7 +17,11 @@ export const getSettings = () => {
  * @returns {Promise<Object>} Результат операции
  */
 export const updateSettings = (section, settings) => {
-  return apiClient.put('', { section, settings });
+  return apiClient.put('', { 
+    section, 
+    settings,
+    method: 'upsert'
+  });
 };
 
 /**

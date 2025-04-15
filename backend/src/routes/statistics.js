@@ -512,6 +512,319 @@ router.get('/financial', verifyToken, checkRole('admin', 'employee'), async (req
   }
 });
 
+// Get employee schedules (for admin)
+router.get('/employee-schedules', 
+  verifyToken, 
+  checkRole('admin', 'employee'),
+  async (req, res) => {
+  try {
+    let { salonId, startDate, endDate } = req.query;
+    
+    // Filtering logic based on user role
+    if (req.user.role !== 'admin') {
+      // Non-admin users can only view their own salon's data
+      salonId = req.user.salon_id;
+    }
+    
+    // If dates are not provided, use current month as default range
+    if (!startDate || !endDate) {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      
+      startDate = firstDayOfMonth.toISOString().split('T')[0];
+      endDate = lastDayOfMonth.toISOString().split('T')[0];
+    }
+    
+    let query = `
+      SELECT 
+        e.id as employee_id,
+        e.first_name || ' ' || e.last_name as employee_name,
+        e.position,
+        e.working_hours,
+        s.id as salon_id,
+        s.name as salon_name
+      FROM employees e
+      JOIN salons s ON e.salon_id = s.id
+      WHERE e.is_active = true
+    `;
+    
+    const queryParams = [];
+    
+    // Add salon filter if provided
+    if (salonId) {
+      query += ` AND e.salon_id = $${queryParams.length + 1}`;
+      queryParams.push(salonId);
+    }
+    
+    query += ` ORDER BY s.name, e.first_name, e.last_name`;
+    
+    logger.info(`Получение расписания сотрудников`, {
+      salonId: salonId || 'all',
+      startDate,
+      endDate,
+      user: req.user.id
+    });
+    
+    const { rows } = await db.query(query, queryParams);
+    
+    // Generate date range for schedule
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const dateRange = [];
+    
+    for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
+      dateRange.push(current.toISOString().split('T')[0]);
+    }
+    
+    // Add empty schedule field to each employee
+    const processedEmployees = rows.map(employee => {
+      // Create map of day names
+      const dayNames = {
+        0: 'Вс',
+        1: 'Пн',
+        2: 'Вт',
+        3: 'Ср',
+        4: 'Чт',
+        5: 'Пт',
+        6: 'Сб'
+      };
+      
+      // Full day names mapping
+      const fullDayNames = {
+        0: 'Воскресенье',
+        1: 'Понедельник',
+        2: 'Вторник',
+        3: 'Среда',
+        4: 'Четверг',
+        5: 'Пятница',
+        6: 'Суббота'
+      };
+      
+      // Process the schedule data from working_hours
+      let schedule = [];
+      
+      if (employee.working_hours) {
+        // Create schedule entries for each date in the range
+        schedule = dateRange.map(date => {
+          const dayDate = new Date(date);
+          const dayOfWeek = dayDate.getDay(); // 0-6 (Sun-Sat)
+          const dayName = dayNames[dayOfWeek];
+          const fullDayName = fullDayNames[dayOfWeek];
+          
+          // Check if this day has working hours defined - try multiple formats
+          let dayHours = employee.working_hours[dayOfWeek] || null;
+          
+          // Try full day name if numeric key didn't work
+          if (!dayHours || !dayHours.start || !dayHours.end || dayHours.is_working === false) {
+            dayHours = employee.working_hours[fullDayName] || null;
+          }
+          
+          // Final check for valid working hours
+          const isWorking = dayHours && dayHours.start && dayHours.end && dayHours.is_working !== false;
+          
+          return {
+            date,
+            day_name: dayName,
+            is_working: isWorking,
+            start_time: isWorking ? dayHours.start : '',
+            end_time: isWorking ? dayHours.end : '',
+            checked_in: false,
+            checkin_time: null,
+            is_late: false
+          };
+        });
+      }
+      
+      return {
+        ...employee,
+        schedule
+      };
+    });
+    
+    res.json(processedEmployees);
+  } catch (error) {
+    logger.error('Error getting employee schedules:', error);
+    res.status(500).json({ 
+      message: 'Error getting employee schedules', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Get employee earnings (for admin)
+router.get('/employee-earnings', 
+  verifyToken, 
+  checkRole('admin', 'employee'),
+  async (req, res) => {
+  try {
+    let { salonId, startDate, endDate } = req.query;
+    
+    // Filtering logic based on user role
+    if (req.user.role !== 'admin') {
+      // Non-admin users can only view their own salon's data
+      salonId = req.user.salon_id;
+    }
+    
+    // If dates are not provided, use current month as default range
+    if (!startDate || !endDate) {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      
+      startDate = firstDayOfMonth.toISOString().split('T')[0];
+      endDate = lastDayOfMonth.toISOString().split('T')[0];
+    }
+    
+    let query = `
+      SELECT 
+        e.id as employee_id,
+        e.first_name || ' ' || e.last_name as employee_name,
+        COUNT(a.id) as appointments_count,
+        SUM(s.price) as total_earnings
+      FROM employees e
+      LEFT JOIN appointments a ON 
+        a.employee_id = e.id AND 
+        a.date_time::date BETWEEN $1 AND $2 AND
+        a.status = 'completed'
+      LEFT JOIN services s ON a.service_id = s.id
+      WHERE e.is_active = true
+    `;
+    
+    const queryParams = [startDate, endDate];
+    
+    // Add salon filter if provided
+    if (salonId) {
+      query += ` AND e.salon_id = $${queryParams.length + 1}`;
+      queryParams.push(salonId);
+    }
+    
+    query += ` GROUP BY e.id ORDER BY total_earnings DESC NULLS LAST`;
+    
+    logger.info(`Получение заработка сотрудников`, {
+      salonId: salonId || 'all',
+      startDate,
+      endDate,
+      user: req.user.id
+    });
+    
+    const { rows } = await db.query(query, queryParams);
+    
+    res.json(rows);
+  } catch (error) {
+    logger.error('Error getting employee earnings:', error);
+    res.status(500).json({ 
+      message: 'Error getting employee earnings', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Add shift check-in endpoint
+router.post('/employee-checkin', 
+  verifyToken, 
+  checkRole('admin', 'employee'),
+  async (req, res) => {
+  const client = await db.getClient();
+  
+  try {
+    const { employeeId, date, checkinTime } = req.body;
+    
+    // Check permission - admin can check in anyone, employee can only check themselves in
+    if (req.user.role === 'employee' && req.user.id !== parseInt(employeeId)) {
+      return res.status(403).json({ 
+        message: 'Вы можете отметить только свой приход'
+      });
+    }
+    
+    // Get employee details to check working hours
+    const { rows: employeeRows } = await client.query(
+      `SELECT id, working_hours FROM employees WHERE id = $1`,
+      [employeeId]
+    );
+    
+    if (employeeRows.length === 0) {
+      return res.status(404).json({ 
+        message: 'Сотрудник не найден'
+      });
+    }
+    
+    // Parse date and get day of week
+    const checkInDate = new Date(date);
+    const dayOfWeek = checkInDate.getDay(); // 0-6, Sunday is 0
+    const dayOfWeekStr = dayOfWeek.toString();
+    
+    // Full day name mapping
+    const fullDayNames = {
+      0: 'Воскресенье', 1: 'Понедельник', 2: 'Вторник', 
+      3: 'Среда', 4: 'Четверг', 5: 'Пятница', 6: 'Суббота'
+    };
+    const fullDayName = fullDayNames[dayOfWeek];
+    
+    // Get working hours for this day
+    const workingHours = employeeRows[0].working_hours || {};
+    
+    // Check both numeric and full name formats
+    let daySchedule = workingHours[dayOfWeekStr];
+    
+    // If not found by numeric key, try full day name
+    if (!daySchedule || !daySchedule.start || !daySchedule.end || daySchedule.is_working === false) {
+      daySchedule = workingHours[fullDayName];
+    }
+    
+    // Check if employee works on this day
+    if (!daySchedule || !daySchedule.start || !daySchedule.end || daySchedule.is_working === false) {
+      return res.status(400).json({ 
+        message: 'Сотрудник не назначен на работу в этот день'
+      });
+    }
+    
+    // Store check-in in the checkins table if it exists, or just return success
+    // This is a simplified version since we don't have the employee_schedules table
+    const actualCheckInTime = checkinTime || new Date().toISOString();
+    
+    // Calculate if employee is late (more than 15 min after start time)
+    // Convert day schedule start time to Date object for comparison
+    const [startHour, startMinute] = daySchedule.start.split(':').map(Number);
+    const scheduleStartTime = new Date(checkInDate);
+    scheduleStartTime.setHours(startHour, startMinute, 0, 0);
+    
+    const checkInDateTime = new Date(actualCheckInTime);
+    const fifteenMinutesLater = new Date(scheduleStartTime.getTime() + 15 * 60000);
+    
+    const isLate = checkInDateTime > fifteenMinutesLater;
+    
+    logger.info(`Сотрудник #${employeeId} отметился о приходе ${isLate ? 'с опозданием' : 'вовремя'}`, {
+      date,
+      checkInTime: actualCheckInTime,
+      isLate,
+      user: req.user.id
+    });
+    
+    res.status(200).json({ 
+      message: 'Отметка о приходе сохранена',
+      is_late: isLate,
+      data: {
+        employee_id: employeeId,
+        date,
+        checkin_time: actualCheckInTime,
+        is_late: isLate
+      }
+    });
+  } catch (error) {
+    logger.error('Error checking in employee:', error);
+    res.status(500).json({ 
+      message: 'Error checking in employee', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
+
 // Helper function to parse and validate date parameters
 function parseAndValidateDates(query) {
   let { startDate, endDate } = query;

@@ -147,23 +147,121 @@ router.delete('/:id',
   verifyToken, 
   checkRole('admin'), 
   async (req, res) => {
+  const client = await db.getClient();
+  
   try {
-    logger.info(`Удаление салона #${req.params.id}`, { user: req.user?.userId });
+    const salonId = req.params.id;
+    logger.info(`Удаление салона #${salonId} вместе со связанными данными`, { user: req.user?.userId });
     
-    const { rows } = await db.query(
-      'DELETE FROM salons WHERE id = $1 RETURNING *',
-      [req.params.id]
+    // Проверяем, существует ли салон
+    const checkResult = await client.query(
+      'SELECT id FROM salons WHERE id = $1',
+      [salonId]
     );
-
-    if (rows.length === 0) {
+    
+    if (checkResult.rows.length === 0) {
+      logger.warn(`Салон #${salonId} не найден при удалении`);
       return res.status(404).json({ message: 'Salon not found' });
     }
+    
+    // Проверяем существование таблицы employee_schedules перед началом транзакции
+    let hasEmployeeSchedulesTable = true;
+    try {
+      await client.query('SELECT 1 FROM employee_schedules LIMIT 1');
+    } catch (error) {
+      if (error.code === '42P01') { // Таблица не существует
+        hasEmployeeSchedulesTable = false;
+        logger.warn(`Таблица employee_schedules не существует, пропускаем этот шаг`);
+      } else {
+        throw error; // Другие ошибки пробрасываем дальше
+      }
+    }
+    
+    // Начинаем транзакцию
+    await client.query('BEGIN');
+    
+    // 1. Сначала удаляем записи на услуги в этом салоне
+    await client.query(
+      'DELETE FROM appointments WHERE salon_id = $1',
+      [salonId]
+    );
+    logger.info(`Удалены все записи для салона #${salonId}`);
+    
+    // 2. Удаляем связи сотрудников с услугами в этом салоне
+    await client.query(
+      'DELETE FROM employee_services WHERE employee_id IN (SELECT id FROM employees WHERE salon_id = $1)',
+      [salonId]
+    );
+    logger.info(`Удалены связи сотрудников с услугами для салона #${salonId}`);
+    
+    // 3. Удаляем расписание сотрудников, только если таблица существует
+    if (hasEmployeeSchedulesTable) {
+      await client.query(
+        'DELETE FROM employee_schedules WHERE employee_id IN (SELECT id FROM employees WHERE salon_id = $1)',
+        [salonId]
+      );
+      logger.info(`Удалено расписание сотрудников для салона #${salonId}`);
+    }
+    
+    // 4. Удаляем услуги салона
+    await client.query(
+      'DELETE FROM services WHERE salon_id = $1',
+      [salonId]
+    );
+    logger.info(`Удалены все услуги для салона #${salonId}`);
+    
+    // 5. Удаляем категории услуг салона
+    await client.query(
+      'DELETE FROM service_categories WHERE salon_id = $1',
+      [salonId]
+    );
+    logger.info(`Удалены все категории услуг для салона #${salonId}`);
+    
+    // 6. Удаляем сотрудников салона
+    await client.query(
+      'DELETE FROM employees WHERE salon_id = $1',
+      [salonId]
+    );
+    logger.info(`Удалены все сотрудники для салона #${salonId}`);
+    
+    // 7. Удаляем салон из избранного
+    await client.query(
+      'DELETE FROM favorite_salons WHERE salon_id = $1',
+      [salonId]
+    );
+    logger.info(`Удален салон #${salonId} из избранного`);
+    
+    // 8. Наконец, удаляем сам салон
+    const result = await client.query(
+      'DELETE FROM salons WHERE id = $1 RETURNING *',
+      [salonId]
+    );
+    
+    // Фиксируем транзакцию
+    await client.query('COMMIT');
 
-    logger.info(`Салон #${req.params.id} успешно удален`);
-    res.json({ message: 'Salon deleted successfully' });
+    logger.info(`Салон #${salonId} успешно удален вместе со всеми связанными данными`);
+    res.json({ 
+      message: 'Salon and all related data deleted successfully',
+      deletedSalon: result.rows[0]
+    });
   } catch (error) {
+    // Откатываем транзакцию в случае ошибки
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error('Error during transaction rollback:', rollbackError);
+    }
+    
     logger.error('Delete salon error:', error);
-    res.status(500).json({ message: 'Error deleting salon', error: error.message });
+    res.status(500).json({ 
+      message: 'Error deleting salon', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  } finally {
+    // Освобождаем клиент
+    client.release();
   }
 });
 

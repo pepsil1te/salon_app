@@ -1,8 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import { ruRU, enUS } from '@mui/material/locale';
-import { theme as baseTheme } from '../theme';
+import { createAppTheme } from '../theme';
 import i18n from '../i18n';
+import settingsApi from '../api/settings';
 
 // Создаем контекст
 export const ThemeLanguageContext = createContext({
@@ -10,6 +11,8 @@ export const ThemeLanguageContext = createContext({
   language: 'ru',
   setTheme: () => {},
   setLanguage: () => {},
+  appearanceSettings: {},
+  updateAppearanceSettings: () => {},
 });
 
 // Хук для использования контекста
@@ -46,6 +49,52 @@ export const ThemeLanguageProvider = ({ children }) => {
     return themeMode === 'system' ? getSystemTheme() : themeMode;
   });
 
+  // Состояние для хранения настроек внешнего вида
+  const [appearanceSettings, setAppearanceSettings] = useState({
+    theme: themeMode,
+    primaryColor: '#00838f',
+    secondaryColor: '#ff6f00',
+    enableAnimations: true,
+    enableBlur: true,
+    roundedCorners: true,
+    density: 'standard',
+    showIcons: true,
+    showLabels: true,
+    showLogo: true
+  });
+
+  // Загрузка настроек при инициализации
+  useEffect(() => {
+    // Функция для получения настроек с сервера
+    const fetchSettings = async () => {
+      try {
+        const response = await settingsApi.getSettings();
+        
+        if (response && response.appearance) {
+          // Обновляем настройки внешнего вида
+          setAppearanceSettings(prevSettings => ({
+            ...prevSettings,
+            ...response.appearance
+          }));
+          
+          // Обновляем тему, если она указана в настройках
+          if (response.appearance.theme) {
+            setThemeMode(response.appearance.theme);
+          }
+        }
+        
+        // Обновляем язык, если он указан в настройках
+        if (response && response.general && response.general.defaultLanguage) {
+          setLanguage(response.general.defaultLanguage);
+        }
+      } catch (error) {
+        console.error('Ошибка при загрузке настроек:', error);
+      }
+    };
+    
+    fetchSettings();
+  }, []);
+
   // Реагируем на изменения системной темы
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -70,33 +119,82 @@ export const ThemeLanguageProvider = ({ children }) => {
     } else {
       setComputedTheme(themeMode);
     }
+    
+    // Обновляем настройки внешнего вида с новой темой
+    setAppearanceSettings(prev => ({
+      ...prev,
+      theme: themeMode
+    }));
   }, [themeMode]);
 
-  // Создаем объединенную тему MUI с учетом выбранной темы и языка
-  const theme = React.useMemo(() => {
-    // Создаем объект темы на основе текущего режима
-    const updatedTheme = createTheme(
-      {
-        ...baseTheme,
-        palette: {
-          ...baseTheme.palette,
-          mode: computedTheme === 'dark' ? 'dark' : 'light',
-          background: {
-            default: computedTheme === 'dark' ? '#121212' : '#f5f5f5',
-            paper: computedTheme === 'dark' ? '#1e1e1e' : '#ffffff',
-          },
-          text: {
-            primary: computedTheme === 'dark' ? '#ffffff' : 'rgba(0, 0, 0, 0.87)',
-            secondary: computedTheme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
-          },
-        },
-      },
-      // Добавляем локализацию на основе выбранного языка
-      language === 'ru' ? ruRU : enUS
-    );
+  // Функция для обновления настроек внешнего вида
+  const updateAppearanceSettings = async (newSettings) => {
+    try {
+      // Создаем копию настроек, чтобы не изменять оригинал
+      const updatedSettings = {
+        ...appearanceSettings,
+        ...newSettings
+      };
+      
+      // Определяем персональные настройки, которые не сохраняются в базе
+      const personalSettings = {
+        theme: updatedSettings.theme
+      };
+      
+      // Глобальные настройки - все кроме персональных
+      const globalSettings = { ...updatedSettings };
+      delete globalSettings.theme;
+      
+      // Применяем настройки локально (все)
+      setAppearanceSettings(updatedSettings);
+      
+      // Если тема изменилась, применяем её локально
+      if (newSettings.theme && newSettings.theme !== themeMode) {
+        setThemeMode(newSettings.theme);
+        
+        // Тему также сохраняем в localStorage
+        localStorage.setItem('theme', newSettings.theme);
+      }
+      
+      // Сохраняем только глобальные настройки на сервере
+      if (Object.keys(globalSettings).length > 0) {
+        console.log('Сохранение глобальных настроек на сервере:', globalSettings);
+        
+        // Используем метод upsert для избежания ошибок с дубликатами ключей
+        const response = await settingsApi.updateSettings('appearance', globalSettings);
+        console.log('Ответ сервера:', response);
+        
+        return true;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Ошибка при обновлении настроек внешнего вида:', error);
+      return false;
+    }
+  };
 
-    return updatedTheme;
-  }, [computedTheme, language]);
+  // Создаем объединенную тему MUI с учетом выбранных настроек
+  const theme = React.useMemo(() => {
+    // Включаем настройки текущей темы в общие настройки внешнего вида
+    const themeWithModeSettings = {
+      ...appearanceSettings,
+      palette: {
+        mode: computedTheme
+      }
+    };
+    
+    console.log('Applying theme mode:', computedTheme, 'with settings:', themeWithModeSettings);
+    
+    // Создаем объект темы на основе текущих настроек внешнего вида
+    const baseTheme = createAppTheme(themeWithModeSettings);
+    
+    // Добавляем локализацию
+    return {
+      ...baseTheme,
+      ...(language === 'ru' ? ruRU : enUS)
+    };
+  }, [computedTheme, language, appearanceSettings]);
 
   // Функция для изменения темы
   const changeTheme = (newTheme) => {
@@ -121,6 +219,9 @@ export const ThemeLanguageProvider = ({ children }) => {
       const colorValue = computedTheme === 'dark' ? '#121212' : '#ffffff';
       metaThemeColor.setAttribute('content', colorValue);
     }
+    
+    // Синхронизируем с настройками внешнего вида
+    updateAppearanceSettings({ theme: newTheme });
   };
 
   // Функция для изменения языка
@@ -133,6 +234,10 @@ export const ThemeLanguageProvider = ({ children }) => {
     i18n.changeLanguage(newLanguage).catch(err => 
       console.error('Ошибка при смене языка:', err)
     );
+    
+    // Синхронизируем с настройками на сервере
+    settingsApi.updateSettings('general', { defaultLanguage: newLanguage })
+      .catch(err => console.error('Ошибка при сохранении языка:', err));
   };
 
   // Применяем тему и язык при монтировании
@@ -155,6 +260,8 @@ export const ThemeLanguageProvider = ({ children }) => {
     language,
     setTheme: changeTheme,
     setLanguage: changeLanguage,
+    appearanceSettings,
+    updateAppearanceSettings
   };
 
   return (

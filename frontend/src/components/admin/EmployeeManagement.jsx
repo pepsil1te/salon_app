@@ -515,7 +515,27 @@ const EmployeeManagement = ({ defaultSalonId, singleSalonMode = false }) => {
   };
 
   // Открытие диалога удаления
-  const handleOpenDeleteDialog = (employeeId) => {
+  const handleOpenDeleteDialog = (employee) => {
+    console.log('handleOpenDeleteDialog вызван с данными:', employee);
+    
+    // Ensure we pass a numeric ID
+    let employeeId;
+    
+    if (typeof employee === 'object') {
+      if (employee.id) {
+        employeeId = employee.id;
+      } else if (employee.employeeId) {
+        employeeId = employee.employeeId;
+      } else {
+        console.error('ID сотрудника не найден в объекте:', employee);
+        // Если не можем получить ID из объекта, используем selectedEmployeeId
+        employeeId = selectedEmployeeId;
+      }
+    } else {
+      employeeId = employee;
+    }
+    
+    console.log('ID сотрудника для удаления:', employeeId);
     setSelectedEmployeeId(employeeId);
     setOpenDeleteDialog(true);
   };
@@ -696,54 +716,81 @@ const EmployeeManagement = ({ defaultSalonId, singleSalonMode = false }) => {
     
     try {
       // Create a copy of the employee data for submission
-      const preparedData = {
-        first_name: employeeData.first_name,
-        last_name: employeeData.last_name,
-        contact_info: {
-          phone: employeeData.phone || '',
-          email: employeeData.email || ''
-        },
-        role: 'employee', 
-        position: employeeData.position || '',
-        working_hours: employeeData.working_hours || {},
-        is_active: employeeData.is_active,
-        salon_id: employeeData.salon_id ? parseInt(employeeData.salon_id, 10) : null,
+        const preparedData = {
+          first_name: employeeData.first_name,
+          last_name: employeeData.last_name,
+          contact_info: {
+            phone: employeeData.phone || '',
+            email: employeeData.email || ''
+          },
+          role: 'employee', 
+          position: employeeData.position || '',
+          working_hours: employeeData.working_hours || {},
+          is_active: employeeData.is_active,
+          salon_id: employeeData.salon_id ? parseInt(employeeData.salon_id, 10) : null,
         service_ids: Array.isArray(employeeData.service_ids) 
           ? employeeData.service_ids
               .filter(id => id !== null && id !== undefined)
               .map(id => parseInt(id, 10))
           : [],
-        photo_url: employeeData.photo_url || ''
-      };
-      
-      console.log('Отправляемые данные:', preparedData);
-      
-      if (dialogMode === 'add') {
-        await createEmployeeMutation.mutateAsync(preparedData);
-      } else {
+          photo_url: employeeData.photo_url || ''
+        };
+        
+        console.log('Отправляемые данные:', preparedData);
+        
+        if (dialogMode === 'add') {
+          await createEmployeeMutation.mutateAsync(preparedData);
+        } else {
         await updateEmployeeMutation.mutateAsync({
           id: selectedEmployeeId,
           data: preparedData
         });
-      }
-      
-      handleCloseDialog();
+        }
+        
+        handleCloseDialog();
     
-    } catch (error) {
+      } catch (error) {
       console.error('Error saving employee:', error);
       setSnackbar({
-        open: true,
+          open: true,
         message: `Ошибка при сохранении сотрудника: ${error.message}`,
-        severity: 'error'
-      });
+          severity: 'error'
+        });
     }
   };
 
   // Обработчик удаления сотрудника
   const handleDeleteEmployee = () => {
-    if (selectedEmployeeId) {
-      deleteEmployeeMutation.mutate(selectedEmployeeId);
+    console.log('handleDeleteEmployee вызван, selectedEmployeeId:', selectedEmployeeId);
+    
+    if (!selectedEmployeeId) {
+      setSnackbar({
+        open: true,
+        message: 'Ошибка: ID сотрудника не выбран',
+        severity: 'error'
+      });
+      return;
     }
+    
+    // Преобразуем ID в число, если это необходимо
+    let employeeId = selectedEmployeeId;
+    if (typeof employeeId === 'string') {
+      employeeId = parseInt(employeeId, 10);
+    }
+    
+    // Проверяем, что ID - валидное число
+    if (isNaN(employeeId)) {
+      console.error('Невалидный ID сотрудника:', selectedEmployeeId);
+      setSnackbar({
+        open: true,
+        message: 'Ошибка: Невалидный ID сотрудника',
+        severity: 'error'
+      });
+      return;
+    }
+    
+    console.log('Вызываем мутацию с ID:', employeeId);
+    deleteEmployeeMutation.mutate(employeeId);
   };
 
   // Обработчик закрытия snackbar
@@ -1785,35 +1832,42 @@ const EmployeeManagement = ({ defaultSalonId, singleSalonMode = false }) => {
             </Grid>
           </Grid>
         </DialogContent>
+        
+        {/* Dialog Footer with Action Buttons */}
         <Box sx={{ 
-          px: 3, 
-          py: 2, 
           display: 'flex', 
           justifyContent: 'space-between',
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(42, 42, 50, 0.9)' : 'rgba(249, 249, 250, 0.9)',
+          padding: '16px 24px', 
           borderTop: '1px solid',
-          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+          borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(42, 42, 50, 0.95)' : 'rgba(245, 245, 245, 0.9)',
         }}>
-          {dialogMode === 'edit' && (
+          {/* Delete Button - show only in edit mode */}
+          <Box>
+            {dialogMode === 'edit' && (
           <Button 
-              color="error"
-              variant="outlined"
-              onClick={() => handleOpenDeleteDialog(selectedEmployeeId)}
-              startIcon={<DeleteIcon />}
-            sx={{
-              borderRadius: 2,
-              px: 3,
-                borderColor: theme.palette.mode === 'dark' ? 'rgba(244, 67, 54, 0.5)' : 'rgba(244, 67, 54, 0.3)',
-                color: '#f44336',
-                '&:hover': {
-                  borderColor: '#f44336',
-                  bgcolor: 'rgba(244, 67, 54, 0.08)'
-                }
-              }}
-            >
-              Удалить
+                variant="outlined" 
+                color="error"
+                onClick={() => {
+                  console.log('Кнопка удаления нажата, данные:', employeeData);
+                  // Используем выбранный ID сотрудника напрямую, а не через employeeData
+                  handleOpenDeleteDialog(selectedEmployeeId);
+                }}
+                startIcon={<DeleteIcon />}
+                sx={{
+                  minWidth: 'auto',
+                  padding: '6px 12px',
+                  '& .MuiButton-startIcon': {
+                    marginRight: '4px'
+                  }
+                }}
+              >
+                Удалить
           </Button>
-          )}
+            )}
+          </Box>
+          
+          {/* Save Button */}
           <Button 
             variant="contained" 
             onClick={handleSaveEmployee}
@@ -1821,23 +1875,24 @@ const EmployeeManagement = ({ defaultSalonId, singleSalonMode = false }) => {
             sx={{
               borderRadius: 2,
               px: 3,
-              background: 'linear-gradient(135deg, #009688 20%, #26a69a 90%)',
-              boxShadow: '0 4px 12px rgba(0, 150, 136, 0.3)',
+              py: 1.2,
+              background: 'linear-gradient(45deg, #00897b 30%, #26a69a 90%)',
+              boxShadow: '0 4px 10px rgba(0, 150, 136, 0.3)',
+              color: 'white',
+              fontWeight: 600,
               '&:hover': {
-                boxShadow: '0 6px 16px rgba(0, 150, 136, 0.4)',
-                background: 'linear-gradient(135deg, #00897b 20%, #00796b 90%)',
-                transform: 'translateY(-1px)'
-              },
-              '&:disabled': {
-                background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
-                color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.26)',
-              },
-              transition: 'all 0.2s ease'
+                background: 'linear-gradient(45deg, #00796b 30%, #00897b 90%)',
+                boxShadow: '0 6px 15px rgba(0, 150, 136, 0.4)',
+              }
             }}
           >
-            {dialogMode === 'add' ? 'Добавить' : 'Сохранить'}
-            {(createEmployeeMutation.isLoading || updateEmployeeMutation.isLoading) && (
-              <CircularProgress size={20} sx={{ ml: 1 }} />
+            {(createEmployeeMutation.isLoading || updateEmployeeMutation.isLoading) ? (
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                Сохранение...
+              </>
+            ) : (
+              dialogMode === 'add' ? 'Добавить сотрудника' : 'Сохранить изменения'
             )}
           </Button>
         </Box>

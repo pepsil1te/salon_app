@@ -28,9 +28,9 @@ router.get('/', verifyToken, checkRole('admin'), async (req, res) => {
 // Обновление настроек
 router.put('/', verifyToken, checkRole('admin'), async (req, res) => {
   try {
-    const { section, settings } = req.body;
+    const { section, settings, method = 'replace' } = req.body;
     
-    logger.info(`Обновление настроек раздела: ${section}`);
+    logger.info(`Обновление настроек раздела: ${section}, метод: ${method}`);
     
     if (!section || !settings) {
       return res.status(400).json({ message: 'Не указаны раздел или настройки' });
@@ -48,15 +48,28 @@ router.put('/', verifyToken, checkRole('admin'), async (req, res) => {
       };
     });
     
-    // Удаляем существующие настройки для данного раздела
-    await db.query('DELETE FROM settings WHERE section = $1', [section]);
-    
-    // Вставляем новые настройки
-    for (const setting of settingsArray) {
-      await db.query(
-        'INSERT INTO settings (section, key, value) VALUES ($1, $2, $3)',
-        [setting.section, setting.key, setting.value]
-      );
+    // В зависимости от метода, обновляем настройки
+    if (method === 'upsert') {
+      // Используем upsert для каждой настройки
+      for (const setting of settingsArray) {
+        await db.query(`
+          INSERT INTO settings (section, key, value)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (section, key) 
+          DO UPDATE SET value = $3, updated_at = CURRENT_TIMESTAMP
+        `, [setting.section, setting.key, setting.value]);
+      }
+    } else {
+      // Удаляем существующие настройки для данного раздела (метод по умолчанию)
+      await db.query('DELETE FROM settings WHERE section = $1', [section]);
+      
+      // Вставляем новые настройки
+      for (const setting of settingsArray) {
+        await db.query(
+          'INSERT INTO settings (section, key, value) VALUES ($1, $2, $3)',
+          [setting.section, setting.key, setting.value]
+        );
+      }
     }
     
     // Получаем обновленные настройки
@@ -88,28 +101,28 @@ router.get('/users', verifyToken, checkRole('admin'), async (req, res) => {
     const { rows: employees } = await db.query(`
       SELECT 
         id, 
-        name, 
+        CONCAT(first_name, ' ', last_name) AS name, 
         contact_info->>'email' AS email, 
         role, 
         CASE WHEN is_active = true THEN 'active' ELSE 'inactive' END AS status,
         'employee' AS user_type,
         salon_id
       FROM employees 
-      ORDER BY name
+      ORDER BY first_name, last_name
     `);
     
     // Получаем клиентов
     const { rows: clients } = await db.query(`
       SELECT 
         id, 
-        name, 
+        CONCAT(first_name, ' ', last_name) AS name, 
         contact_info->>'email' AS email, 
         'client' AS role,
         CASE WHEN is_active IS NULL OR is_active = true THEN 'active' ELSE 'inactive' END AS status,
         'client' AS user_type,
         NULL AS salon_id
       FROM clients
-      ORDER BY name
+      ORDER BY first_name, last_name
     `);
     
     // Объединяем результаты

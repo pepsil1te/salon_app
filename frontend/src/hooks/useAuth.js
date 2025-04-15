@@ -218,6 +218,54 @@ const useAuth = () => {
     }
   }, [isLoginPage, isAdminPage, isEmployeePage, isClientPage, isPublicPage, user, tokenRole]);
 
+  // Process the user data from the response, ensuring admin has no salon_id
+  const processUser = (userData) => {
+    // For admin users, salon_id should be null, not tied to any specific salon
+    const isAdmin = userData.role === 'admin';
+    
+    return {
+      ...userData,
+      isAdmin,
+      salon_id: isAdmin ? null : userData.salon_id
+    };
+  };
+
+  // In login success handler:
+  const handleLoginSuccess = (data) => {
+    localStorage.setItem('auth_token', data.token);
+    const processedUser = processUser(data.user);
+    setIsAuthenticated(true);
+    setIsLoading(false);
+    return processedUser;
+  };
+
+  // In the getCurrentUser method:
+  const getCurrentUser = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        setIsAuthenticated(false);
+        setUser(null);
+        setIsLoading(false);
+        return null;
+      }
+
+      const response = await api.get('/auth/profile');
+      const processedUser = processUser(response.data);
+      setUser(processedUser);
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      return processedUser;
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      setIsAuthenticated(false);
+      setUser(null);
+      setIsLoading(false);
+      return null;
+    }
+  };
+
   return {
     user,
     isLoading: isLoading || isFetching || isRefetching,

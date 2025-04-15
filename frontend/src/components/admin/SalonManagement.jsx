@@ -257,7 +257,7 @@ const SalonManagement = () => {
             if (nextDayIndex - currentDayIndex === 1) {
               // Последовательные дни
               currentSeq.push(sortedDays[i]);
-            } else {
+          } else {
               // Начинаем новую последовательность
               sequences.push(currentSeq);
               currentSeq = [sortedDays[i]];
@@ -1693,7 +1693,7 @@ const SalonManagement = () => {
     console.log("handleSaveSalon: Начало сохранения салона");
     
     try {
-      if (validateForm()) {
+    if (validateForm()) {
         console.log("handleSaveSalon: Валидация прошла успешно, формируем данные");
         
         // Убедимся, что contact_info - это объект
@@ -1728,21 +1728,21 @@ const SalonManagement = () => {
         console.log("handleSaveSalon: contact_info:", contact_info);
         console.log("handleSaveSalon: working_hours:", working_hours);
         
-        // Преобразование данных в формат, ожидаемый сервером
-        const preparedData = {
-          name: salonData.name,
-          address: salonData.address,
+      // Преобразование данных в формат, ожидаемый сервером
+      const preparedData = {
+        name: salonData.name,
+        address: salonData.address,
           // Используем подготовленные объекты
           contact_info: contact_info,
           working_hours: working_hours,
-          // Добавляем остальные поля, если они есть
-          ...(salonData.status && { status: salonData.status }),
-          ...(salonData.image_url && { image_url: salonData.image_url }),
-          ...(salonData.description && { description: salonData.description }),
-          is_active: salonData.is_active === true, // Ensure it's a boolean value
-          ...(salonData.logo && { logo: salonData.logo }),
-          ...(salonData.cover_image && { cover_image: salonData.cover_image })
-        };
+        // Добавляем остальные поля, если они есть
+        ...(salonData.status && { status: salonData.status }),
+        ...(salonData.image_url && { image_url: salonData.image_url }),
+        ...(salonData.description && { description: salonData.description }),
+        is_active: salonData.is_active === true, // Ensure it's a boolean value
+        ...(salonData.logo && { logo: salonData.logo }),
+        ...(salonData.cover_image && { cover_image: salonData.cover_image })
+      };
 
         console.log('handleSaveSalon: Отправляемые данные:', JSON.stringify(preparedData, null, 2));
 
@@ -1751,7 +1751,7 @@ const SalonManagement = () => {
 
         // Добавляем небольшую задержку для уверенности, что UI успеет обновиться
         setTimeout(() => {
-          if (dialogMode === 'add') {
+      if (dialogMode === 'add') {
             console.log("handleSaveSalon: Режим добавления, вызываем createSalonMutation.mutate");
             try {
               createSalonMutation.mutate(preparedData, {
@@ -1763,7 +1763,7 @@ const SalonManagement = () => {
               console.error("handleSaveSalon: Ошибка при вызове createSalonMutation.mutate", error);
               setIsSaving(false);
             }
-          } else {
+      } else {
             console.log("handleSaveSalon: Режим редактирования, вызываем updateSalonMutation.mutate");
             try {
               updateSalonMutation.mutate({ id: selectedSalonId, data: preparedData }, {

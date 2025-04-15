@@ -6,6 +6,9 @@ const morgan = require('morgan');
 const logger = require('./config/logger');
 const { requestLogger, errorLogger } = require('./middleware/logger');
 const { initDB } = require('./db/init_complete_db');
+const path = require('path');
+const fs = require('fs');
+const db = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -21,12 +24,13 @@ const favoritesRoutes = require('./routes/favorites');
 const app = express();
 
 // Middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for development
+  crossOriginEmbedderPolicy: false
 }));
+app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger());
 
 // Routes
@@ -72,26 +76,19 @@ async function startServer() {
       logger.info('Пропуск инициализации базы данных. Установите INIT_DATABASE=true для инициализации.');
     }
 
-    const db = require('./config/database');
-    
     // Выполнение скрипта обновления схемы
-    const fs = require('fs');
-    const path = require('path');
+    const updateSchemaSQL = fs.readFileSync(
+      path.join(__dirname, 'db', 'complete_schema.sql'),
+      'utf8'
+    );
     
-    try {
-      const updateSchemaSQL = fs.readFileSync(
-        path.join(__dirname, 'db', 'complete_schema.sql'),
-        'utf8'
-      );
-      
-      logger.info('Выполнение скрипта обновления схемы базы данных...');
-      await db.query(updateSchemaSQL);
-      logger.info('Схема базы данных успешно обновлена.');
-    } catch (schemaError) {
-      logger.error('Ошибка при обновлении схемы базы данных:', schemaError);
-      // Продолжаем запуск сервера, даже если обновление схемы не удалось
-    }
-    
+    logger.info('Выполнение скрипта обновления схемы базы данных...');
+    await db.query(updateSchemaSQL);
+    logger.info('Схема базы данных успешно обновлена.');
+
+    // Run database migrations
+    await runMigrations();
+
     // Запуск сервера
     const PORT = process.env.PORT || 3001;
     const server = app.listen(PORT, () => {
@@ -100,6 +97,26 @@ async function startServer() {
   } catch (error) {
     logger.error('Ошибка при запуске сервера:', error);
     process.exit(1);
+  }
+}
+
+// Run database migrations
+async function runMigrations() {
+  try {
+    logger.info('Checking database connection before running migrations...');
+    const isConnected = await db.testConnection();
+    
+    if (!isConnected) {
+      logger.error('Database connection failed, skipping migrations');
+      return;
+    }
+    
+    logger.info('Running database migrations...');
+    
+    // Note: We've removed the employee_schedules migration as that table is not needed
+    
+  } catch (error) {
+    logger.error('Error during migration process:', error);
   }
 }
 

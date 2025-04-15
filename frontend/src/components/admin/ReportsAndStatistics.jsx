@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -36,7 +36,12 @@ import {
   ListItemText,
   Chip,
   AlertTitle,
-  alpha
+  alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Avatar
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -55,7 +60,11 @@ import {
   Info as InfoIcon,
   HelpOutline as HelpOutlineIcon,
   TimelineOutlined as TimelineIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  CheckCircle as CheckCircleIcon,
+  AccessTime as AccessTimeIcon,
+  HowToReg as HowToRegIcon,
+  Check as CheckIcon
 } from '@mui/icons-material';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PieChartIcon from '@mui/icons-material/PieChart';
@@ -80,6 +89,14 @@ function TabPanel(props) {
       )}
     </div>
   );
+}
+
+// Add missing a11yProps function
+function a11yProps(index) {
+  return {
+    id: `reports-tab-${index}`,
+    'aria-controls': `reports-tabpanel-${index}`,
+  };
 }
 
 const ReportsAndStatistics = ({ salonId, reportType: initialReportType }) => {
@@ -1460,23 +1477,10 @@ const ReportsAndStatistics = ({ salonId, reportType: initialReportType }) => {
                       {isAdmin && (
                         <TableCell>{employee.salon_name || 'Не указан'}</TableCell>
                       )}
-                      <TableCell align="center">
-                        {employee.position || 'Сотрудник'}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip 
-                          label={isAdmin 
-                          ? employee.completed_appointments || 0
-                          : employee.appointment_count || 0
-                        }
-                          size="small"
-                          sx={{ 
-                            fontWeight: 'bold',
-                            background: `${infoGradient}`,
-                            color: 'white' 
-                          }}
-                        />
-                      </TableCell>
+                      <TableCell align="center">{employee.position || 'Сотрудник'}</TableCell>
+                      <TableCell align="center">{employee.appointments_count}</TableCell>
+                      <TableCell align="center" sx={{ color: 'success.main' }}>{employee.completed_count}</TableCell>
+                      <TableCell align="center" sx={{ color: 'error.main' }}>{employee.cancelled_count}</TableCell>
                       <TableCell 
                         align="right" 
                         sx={{ 
@@ -1484,10 +1488,7 @@ const ReportsAndStatistics = ({ salonId, reportType: initialReportType }) => {
                           color: theme.palette.primary.main
                         }}
                       >
-                        {((isAdmin 
-                          ? (employee.total_revenue || 0)
-                          : (employee.revenue || 0)
-                        ).toLocaleString('ru-RU'))} ₽
+                        {employee.total_earnings.toLocaleString('ru-RU')} ₽
                       </TableCell>
                     </TableRow>
                   ))}
@@ -2166,159 +2167,995 @@ const ReportsAndStatistics = ({ salonId, reportType: initialReportType }) => {
   );
 
   return (
-    <Box sx={{ pb: 4 }}>
-      <Box 
+    <Box sx={{ mb: 4 }}>
+      <Box
         sx={{ 
           display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
+          flexDirection: ['column', 'row'],
+          justifyContent: 'space-between',
+          alignItems: ['flex-start', 'center'],
+          background: primaryGradient,
+          borderRadius: '10px',
+          padding: '16px 24px',
           mb: 3,
-          flexDirection: isMobile ? 'column' : 'row',
+          boxShadow: cardBoxShadow,
+          color: 'white',
           gap: 2
         }}
       >
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          sx={{ 
-            fontWeight: 700,
-            background: primaryGradient,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}
-        >
-        Отчеты и статистика
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <BarChartIcon sx={{ fontSize: 30 }} />
+          <Box>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold' }}>
+              Отчёты и Статистика
       </Typography>
-        <IconButton 
-          onClick={toggleHelp}
-          sx={{ 
-            color: theme.palette.primary.main, 
-            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-            '&:hover': {
-              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
-            }
-          }}
-          aria-label="Справка по отчетам"
-        >
-          <HelpOutlineIcon />
-        </IconButton>
+            <Typography variant="body2">
+              Анализ эффективности работы и ключевых показателей бизнеса
+            </Typography>
+          </Box>
+        </Box>
+        <Box>
+          <IconButton 
+            aria-label="Справка" 
+            onClick={toggleHelp}
+            sx={{ 
+              color: 'white',
+              opacity: 0.8,
+              '&:hover': { opacity: 1, bgcolor: 'rgba(255,255,255,0.1)' },
+              boxShadow: helpOpen ? buttonShadow : 'none',
+              transform: helpOpen ? hoverTransform : 'none',
+            }}
+          >
+            <HelpOutlineIcon />
+          </IconButton>
+        </Box>
       </Box>
       
       {helpOpen && (
-        <Paper 
-          elevation={0} 
+        <Alert 
+          severity="info" 
           sx={{ 
-            p: 3, 
             mb: 3, 
-            borderRadius: 3,
-            background: infoGradient,
-            color: 'white',
-            boxShadow: cardBoxShadow
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
           }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            <InfoIcon sx={{ mt: 0.5 }} />
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                Справка по отчетам
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 1 }}>
-                В этом разделе вы можете просматривать различные отчеты и статистику по работе салона.
-              </Typography>
-              <Typography variant="body2">
-                • <strong>Выручка</strong> - финансовые показатели за период<br />
-                • <strong>Записи</strong> - данные о записях клиентов<br />
-                • <strong>Услуги</strong> - статистика по популярности услуг<br />
-                • <strong>Клиенты</strong> - информация о клиентах и их активности
-              </Typography>
-            </Box>
-            <IconButton 
-              onClick={toggleHelp} 
-              sx={{ 
-                color: 'white', 
-                bgcolor: 'rgba(255,255,255,0.1)',
-                '&:hover': {
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                }
-              }}
-              aria-label="Закрыть справку"
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              size="small"
+              onClick={() => setHelpOpen(false)}
             >
-              <CloseIcon />
+              <CloseIcon fontSize="inherit" />
             </IconButton>
+          }
+        >
+          <AlertTitle>Как работать с отчётами</AlertTitle>
+          <Typography variant="body2" paragraph>
+            Выберите интересующий вас салон, период времени и тип отчета. Вы можете:
+          </Typography>
+          <Box component="ul" sx={{ pl: 2, mt: 0 }}>
+            <Box component="li"><strong>Аналитика:</strong> Обзор ключевых показателей и графики</Box>
+            <Box component="li"><strong>Отчеты по выручке:</strong> Доход по дням и источникам</Box>
+            <Box component="li"><strong>Статистика услуг:</strong> Популярность и доходность услуг</Box>
+            <Box component="li"><strong>Данные по сотрудникам:</strong> Производительность и загруженность</Box>
+            <Box component="li"><strong>Расписание сотрудников:</strong> График работы и заработок</Box>
           </Box>
-        </Paper>
+          <Typography variant="body2">
+            Вы также можете скачать или распечатать любой отчет для дальнейшего анализа.
+          </Typography>
+        </Alert>
       )}
       
       <ReportForm />
       
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 3 }}>
         <Tabs 
           value={tabValue} 
           onChange={handleTabChange} 
-          variant={isMobile ? "scrollable" : "fullWidth"}
+          aria-label="report tabs"
+          variant={isMobile ? "scrollable" : "standard"}
           scrollButtons={isMobile ? "auto" : false}
           allowScrollButtonsMobile
-          textColor="primary"
-          indicatorColor="primary"
           sx={{
-            mb: 2,
             '& .MuiTab-root': {
-              fontWeight: 'bold',
-              transition: 'all 0.3s',
-              '&:hover': {
-                color: theme.palette.primary.main,
-                opacity: 1
-              }
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: isMobile ? '0.825rem' : '0.875rem',
+              minHeight: isMobile ? 48 : 56,
+              minWidth: isMobile ? 'auto' : 120,
             },
             '& .Mui-selected': {
-              color: theme.palette.primary.main,
-            },
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: 1.5
+              fontWeight: 600,
             }
           }}
         >
           <Tab 
-            icon={<BarChartIcon />} 
-            label="Общие метрики" 
-            iconPosition="start"
+            icon={<BarChartIcon fontSize="small" />} 
+            iconPosition="start" 
+            label={isMobile ? "Аналитика" : "Аналитика и дашборд"} 
+            {...a11yProps(0)} 
           />
           <Tab 
-            icon={<SpaIcon />} 
-            label="Популярные услуги" 
-            iconPosition="start"
+            icon={<AttachMoneyIcon fontSize="small" />} 
+            iconPosition="start" 
+            label="Выручка" 
+            {...a11yProps(1)} 
           />
           <Tab 
-            icon={<PeopleIcon />} 
-            label="Топ сотрудников" 
-            iconPosition="start"
+            icon={<SpaIcon fontSize="small" />} 
+            iconPosition="start" 
+            label="Услуги" 
+            {...a11yProps(2)} 
           />
           <Tab 
-            icon={<AttachMoneyIcon />}
-            label="Детальный отчет" 
-            iconPosition="start"
+            icon={<PeopleIcon fontSize="small" />} 
+            iconPosition="start" 
+            label="Сотрудники" 
+            {...a11yProps(3)} 
+          />
+          <Tab 
+            icon={<EventIcon fontSize="small" />} 
+            iconPosition="start" 
+            label="Расписание" 
+            {...a11yProps(4)} 
           />
         </Tabs>
+      </Box>
       
+      {/* Аналитика и дашборд */}
       <TabPanel value={tabValue} index={0}>
         <KeyMetricsCards />
       </TabPanel>
-      
+
+      {/* Отчеты по выручке */}
       <TabPanel value={tabValue} index={1}>
-          <PopularServicesTable />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={2}>
-          <TopEmployeesTable />
-      </TabPanel>
-      
-      <TabPanel value={tabValue} index={3}>
         <ReportTable />
       </TabPanel>
-      </Box>
+
+      {/* Статистика по услугам */}
+      <TabPanel value={tabValue} index={2}>
+            <PopularServicesTable />
+      </TabPanel>
+
+      {/* Статистика по сотрудникам */}
+      <TabPanel value={tabValue} index={3}>
+            <TopEmployeesTable />
+      </TabPanel>
+      
+      {/* Расписание сотрудников */}
+      <TabPanel value={tabValue} index={4}>
+        <EmployeeScheduleAndEarningsTable />
+      </TabPanel>
     </Box>
   );
 };
 
-export default ReportsAndStatistics; 
+// Context for sharing report parameters between components
+const ReportsContext = React.createContext({});
+const useReportsContext = () => React.useContext(ReportsContext);
+
+// Helper function to get correct Russian plural form
+const pluralize = (number, words) => {
+  const cases = [2, 0, 1, 1, 1, 2];
+  const index = (number % 100 > 4 && number % 100 < 20) ? 2 : cases[Math.min(number % 10, 5)];
+  return words[index];
+};
+
+// Employee Schedule and Earnings Table with check-in tracking
+const EmployeeScheduleAndEarningsTable = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const { user } = useAuthContext();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [checkInDialogOpen, setCheckInDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [checkInStatus, setCheckInStatus] = useState({ success: false, message: '', error: false });
+  
+  // Get the necessary context from parent component
+  const { selectedSalon, formattedStartDate, formattedEndDate } = useReportsContext();
+  
+  // Format today's date for API call
+  const todayFormatted = format(selectedDate, 'yyyy-MM-dd');
+  
+  // Load employee schedules
+  const {
+    data: scheduleData,
+    isLoading: isLoadingSchedules,
+    error: scheduleError,
+    refetch: refetchSchedules
+  } = useQuery(
+    [
+      'statistics', 
+      'employeeSchedules', 
+      selectedSalon !== 'all' ? selectedSalon : null,
+      formattedStartDate, 
+      formattedEndDate,
+      selectedDate // Add selected date as a dependency to force refresh on date change
+    ],
+    () => statisticsApi.getEmployeeSchedules({
+      salonId: selectedSalon !== 'all' ? selectedSalon : undefined,
+      startDate: formattedStartDate,
+      endDate: formattedEndDate
+    }),
+    {
+      staleTime: 2 * 60 * 1000, // 2 minutes
+      enabled: (user?.role === 'admin' || selectedSalon !== 'all')
+    }
+  );
+  
+  // Load employee earnings for the same period
+  const {
+    data: earningsData,
+    isLoading: isLoadingEarnings,
+    error: earningsError
+  } = useQuery(
+    [
+      'statistics', 
+      'employeeEarnings', 
+      selectedSalon !== 'all' ? selectedSalon : null,
+      formattedStartDate, 
+      formattedEndDate
+    ],
+    () => statisticsApi.getEmployeeEarnings({
+      salonId: selectedSalon !== 'all' ? selectedSalon : undefined,
+      startDate: formattedStartDate,
+      endDate: formattedEndDate
+    }),
+    {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      enabled: (user?.role === 'admin' || selectedSalon !== 'all')
+    }
+  );
+  
+  // Handle employee check-in
+  const handleCheckIn = async (employee, date) => {
+    try {
+      setCheckingIn(true);
+      
+      // Get day of week for the selected date (0-6, Sunday is 0)
+      const dayOfWeek = date.getDay();
+      const dayOfWeekStr = dayOfWeek.toString();
+      
+      // Full day name mapping
+      const fullDayNames = {
+        0: 'Воскресенье', 1: 'Понедельник', 2: 'Вторник', 
+        3: 'Среда', 4: 'Четверг', 5: 'Пятница', 6: 'Суббота'
+      };
+      const fullDayName = fullDayNames[dayOfWeek];
+      
+      // Get working hours for this day - check both numeric and full name formats
+      const workingHours = employee.working_hours || {};
+      let daySchedule = workingHours[dayOfWeekStr];
+      
+      // If not found by numeric key, try full day name
+      if (!daySchedule || !daySchedule.start || !daySchedule.end || daySchedule.is_working === false) {
+        daySchedule = workingHours[fullDayName];
+      }
+      
+      if (!daySchedule || !daySchedule.start || !daySchedule.end || daySchedule.is_working === false) {
+        setCheckInStatus({
+          success: false,
+          error: true,
+          message: 'Этот сотрудник не назначен на работу в этот день'
+        });
+        return;
+      }
+      
+      // Call API to check in employee
+      const response = await statisticsApi.checkInEmployee({
+        employeeId: employee.employee_id,
+        date: format(date, 'yyyy-MM-dd'),
+        checkinTime: new Date().toISOString()
+      });
+      
+      setCheckInStatus({
+        success: true,
+        error: false,
+        message: 'Сотрудник успешно отмечен'
+      });
+      
+      // Refresh the data
+      await refetchSchedules();
+      
+    } catch (error) {
+      console.error('Error checking in employee:', error);
+      setCheckInStatus({
+        success: false,
+        error: true,
+        message: error.message || 'Произошла ошибка при отметке сотрудника'
+      });
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+  
+  // Open check-in dialog
+  const openCheckInDialog = (employee) => {
+    setSelectedEmployee(employee);
+    setCheckInDialogOpen(true);
+    setCheckInStatus({ success: false, message: '', error: false });
+  };
+  
+  // Close check-in dialog
+  const closeCheckInDialog = () => {
+    setCheckInDialogOpen(false);
+    
+    // If check-in was successful, refresh the data
+    if (checkInStatus.success) {
+      setTimeout(() => {
+        refetchSchedules();
+      }, 500);
+    }
+  };
+  
+  // Submit check-in
+  const submitCheckIn = async () => {
+    if (!selectedEmployee) return;
+    
+    try {
+      await handleCheckIn(selectedEmployee, selectedDate);
+    } catch (error) {
+      console.error('Error during check-in:', error);
+    }
+  };
+  
+  // Helper function for day name abbreviation
+  const getDayAbbr = (dayName) => {
+    const abbr = {
+      'Понедельник': 'Пн',
+      'Вторник': 'Вт',
+      'Среда': 'Ср',
+      'Четверг': 'Чт',
+      'Пятница': 'Пт',
+      'Суббота': 'Сб',
+      'Воскресенье': 'Вс'
+    };
+    return abbr[dayName] || dayName.substring(0, 2);
+  };
+  
+  // Process and combine data
+  const combinedData = useMemo(() => {
+    if (!scheduleData || !Array.isArray(scheduleData)) return [];
+    
+    return scheduleData.map(employee => {
+      // Find earnings for this employee
+      const earnings = earningsData?.find(e => 
+        e.employee_id === employee.employee_id
+      ) || { total_earnings: 0, appointments_count: 0 };
+      
+      // Combine the data
+      return {
+        ...employee,
+        total_earnings: earnings.total_earnings || 0,
+        appointments_count: earnings.appointments_count || 0
+      };
+    });
+  }, [scheduleData, earningsData]);
+  
+  // Get unique salon names
+  const salonNames = useMemo(() => {
+    if (!combinedData || !Array.isArray(combinedData)) return [];
+    
+    const uniqueSalons = [...new Set(combinedData.map(item => item.salon_name))];
+    return uniqueSalons.filter(Boolean).sort();
+  }, [combinedData]);
+  
+  // Loading state
+  if ((isLoadingSchedules || isLoadingEarnings) && !scheduleData) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
+  // Error state
+  if ((scheduleError || earningsError) && !scheduleData) {
+    return (
+      <Alert severity="error" sx={{ my: 2 }}>
+        Ошибка загрузки данных о сотрудниках. Пожалуйста, попробуйте позже.
+      </Alert>
+    );
+  }
+  
+  // Empty state
+  if ((!combinedData || !combinedData.length) && !isLoadingSchedules) {
+    return (
+      <Alert severity="info" sx={{ my: 2 }}>
+        Нет данных о расписании сотрудников за выбранный период
+      </Alert>
+    );
+  }
+
+  // Render work schedule in a more intuitive calendar-like format
+  const renderWorkSchedule = (employee) => {
+    const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    const fullDayNames = {
+      0: 'Воскресенье', 1: 'Понедельник', 2: 'Вторник', 3: 'Среда', 4: 'Четверг', 5: 'Пятница', 6: 'Суббота',
+      'Вс': 'Воскресенье', 'Пн': 'Понедельник', 'Вт': 'Вторник', 'Ср': 'Среда', 'Чт': 'Четверг', 'Пт': 'Пятница', 'Сб': 'Суббота'
+    };
+    
+    // Get working hours from employee data
+    const workingHours = employee.working_hours || {};
+    
+    // Debug: log the working hours to console to see format
+    console.log(`Employee ${employee.employee_name} working hours:`, workingHours);
+    
+    // Days to display (numeric format: 0-6 for Sun-Sat)
+    const daysToRender = [1, 2, 3, 4, 5, 6, 0]; // Mon-Sun order
+    
+    return (
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.8 }}>
+        {daysToRender.map(dayNum => {
+          const today = new Date();
+          const isToday = today.getDay() === dayNum;
+          const dayName = days[dayNum];
+          const fullDayName = fullDayNames[dayNum];
+          
+          // Check for working hours in different formats
+          let dayData = null;
+          let isWorkingDay = false;
+          
+          // Check FULL day name (e.g. "Понедельник")
+          if (workingHours[fullDayName] && 
+              typeof workingHours[fullDayName] === 'object' && 
+              workingHours[fullDayName].start && 
+              workingHours[fullDayName].end &&
+              workingHours[fullDayName].is_working !== false) {
+            dayData = workingHours[fullDayName];
+            isWorkingDay = true;
+          }
+          // Check numeric key
+          else if (workingHours[dayNum.toString()] && 
+              typeof workingHours[dayNum.toString()] === 'object' && 
+              workingHours[dayNum.toString()].start && 
+              workingHours[dayNum.toString()].end &&
+              workingHours[dayNum.toString()].is_working !== false) {
+            dayData = workingHours[dayNum.toString()];
+            isWorkingDay = true;
+          }
+          // Check abbreviation
+          else if (workingHours[dayName] && 
+              typeof workingHours[dayName] === 'object' &&
+              workingHours[dayName].start && 
+              workingHours[dayName].end &&
+              workingHours[dayName].is_working !== false) {
+            dayData = workingHours[dayName];
+            isWorkingDay = true;
+          }
+          
+          // Determine text to display
+          let displayText;
+          
+          if (isWorkingDay && dayData) {
+            displayText = `${dayName} ${dayData.start}-${dayData.end}`;
+          } else {
+            displayText = `${dayName} выходной`;
+          }
+          
+          return (
+            <Chip
+              key={dayNum}
+              size="small"
+              label={displayText}
+              color={isToday ? "primary" : isWorkingDay ? "success" : "default"}
+              variant={isToday ? "filled" : "outlined"}
+          sx={{ 
+                fontSize: '0.75rem',
+                fontWeight: isToday ? 500 : 400,
+                borderRadius: '12px',
+                backgroundImage: isToday 
+                  ? 'linear-gradient(to right, #4f46e5, #3f6ec6)'
+                  : isWorkingDay 
+                    ? 'linear-gradient(to right, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05))'
+                    : 'none',
+                '& .MuiChip-label': {
+                  padding: '2px 8px',
+                }
+              }}
+            />
+          );
+        })}
+      </Box>
+    );
+  };
+
+  // Desktop version of schedule table cell
+  const renderScheduleTableCell = (employee) => {
+    return (
+      <TableCell>
+        {renderWorkSchedule(employee)}
+      </TableCell>
+    );
+  };
+
+  // Mobile version of schedule display
+  const renderMobileSchedule = (employee) => {
+    return (
+      <>
+        <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+          График работы:
+        </Typography>
+        {renderWorkSchedule(employee)}
+      </>
+    );
+  };
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ 
+            display: 'flex', 
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          gap: 2
+        }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Расписание и заработок сотрудников
+          </Typography>
+          
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
+            <DatePicker
+              label="Дата для отметки"
+              value={selectedDate}
+              onChange={(newDate) => {
+                setSelectedDate(newDate);
+                // Force refresh when date changes
+                setTimeout(() => {
+                  refetchSchedules();
+                }, 100);
+              }}
+              renderInput={(params) => (
+                <TextField 
+                  {...params} 
+                  size="small" 
+                  sx={{ 
+                    width: isMobile ? '100%' : 200,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2
+                    } 
+                  }}
+                />
+              )}
+            />
+          </LocalizationProvider>
+        </Box>
+        
+        {scheduleError && (
+          <Alert severity="error">
+            Ошибка при загрузке расписания: {scheduleError.message}
+          </Alert>
+        )}
+      </Box>
+      
+      {!isMobile && (
+        <Paper 
+          sx={{ 
+            overflow: 'hidden', 
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)', 
+            mb: 3, 
+            borderRadius: 3 
+          }}
+          elevation={3}
+        >
+          <TableContainer sx={{ maxHeight: 600 }}>
+            <Table stickyHeader aria-label="employee schedule table">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Сотрудник</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Салон</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>График работы</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Статус</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>Заработок</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {salonNames.map(salonName => (
+                  <React.Fragment key={salonName}>
+                    <TableRow
+                      sx={{
+                        bgcolor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.dark, 0.15)
+                          : alpha(theme.palette.primary.light, 0.15)
+                      }}
+                    >
+                      <TableCell 
+                        colSpan={5} 
+                        sx={{ 
+                          fontWeight: 600, 
+                          py: 1
+                        }}
+                      >
+                        {salonName}
+                      </TableCell>
+                    </TableRow>
+                    
+                    {combinedData
+                      .filter(employee => employee.salon_name === salonName)
+                      .map((employee, index) => {
+                        // Find today's schedule
+                        const todaySchedule = employee.schedule?.find(s => 
+                          s.date === todayFormatted
+                        ) || { is_working: false };
+                        
+                        return (
+                          <TableRow 
+                            key={employee.employee_id}
+                            sx={{ 
+                              '&:nth-of-type(odd)': { 
+                                bgcolor: theme.palette.mode === 'dark' 
+                                  ? alpha(theme.palette.action.hover, 0.05)
+                                  : alpha(theme.palette.action.hover, 0.05)
+                              },
+                              '&:hover': {
+                                bgcolor: theme.palette.mode === 'dark' 
+                                  ? alpha(theme.palette.action.hover, 0.1)
+                                  : alpha(theme.palette.action.hover, 0.1)
+                              }
+                            }}
+                          >
+                            <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {employee.employee_name}
+        </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {employee.position}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              {employee.salon_name}
+                            </TableCell>
+                            {renderScheduleTableCell(employee)}
+                            <TableCell align="center">
+                              {todaySchedule.is_working ? (
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                                  {todaySchedule.checked_in ? (
+                                    <>
+                                      <Chip 
+                                        size="small"
+                                        label={`Отмечен в ${todaySchedule.checkin_time}`}
+                                        color={todaySchedule.is_late ? "warning" : "success"}
+                                        icon={todaySchedule.is_late ? <AccessTimeIcon /> : <CheckCircleIcon />}
+                                        sx={{
+                                          borderRadius: '12px',
+                                          backgroundImage: todaySchedule.is_late
+                                            ? 'linear-gradient(to right, #f59e0b, #d97706)'
+                                            : 'linear-gradient(to right, #10b981, #059669)'
+                                        }}
+                                      />
+                                      {todaySchedule.is_late && (
+                                        <Typography variant="caption" color="warning.main" sx={{ fontWeight: 500 }}>
+                                          Опоздание
+                                        </Typography>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      color="primary"
+                                      onClick={() => openCheckInDialog(employee)}
+                                      startIcon={<HowToRegIcon />}
+                                      sx={{
+                                        borderRadius: '20px',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                        background: 'linear-gradient(to right, #4f46e5, #3b82f6)',
+                                        textTransform: 'none',
+                                        '&:hover': {
+                                          background: 'linear-gradient(to right, #4338ca, #3b82f6)',
+                                          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                        }
+                                      }}
+                                    >
+                                      Отметить
+                                    </Button>
+                                  )}
+                                </Box>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                  Не работает сегодня
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {new Intl.NumberFormat('ru-RU', {
+                                  style: 'currency',
+                                  currency: 'RUB',
+                                  minimumFractionDigits: 0
+                                }).format(employee.total_earnings || 0)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {employee.appointments_count || 0} 
+                                {' '}
+                                {pluralize(employee.appointments_count || 0, ['запись', 'записи', 'записей'])}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    }
+                  </React.Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+      
+      {/* For mobile devices - card style */}
+      {isMobile && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {salonNames.map(salonName => (
+            <Box key={salonName} sx={{ mb: 2 }}>
+        <Typography 
+                variant="subtitle1" 
+          sx={{ 
+                  fontWeight: 600,
+                  p: 1.5,
+                  borderRadius: '12px 12px 0 0',
+                  bgcolor: theme.palette.mode === 'dark' 
+                    ? alpha(theme.palette.primary.dark, 0.15)
+                    : alpha(theme.palette.primary.light, 0.15),
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}
+              >
+                {salonName}
+        </Typography>
+              
+              {combinedData
+                .filter(employee => employee.salon_name === salonName)
+                .map(employee => {
+                  // Find today's schedule
+                  const todaySchedule = employee.schedule?.find(s => 
+                    s.date === todayFormatted
+                  ) || { is_working: false };
+                  
+                  return (
+                    <Paper 
+                      key={employee.employee_id}
+                      elevation={2}
+          sx={{ 
+                        mb: 2,
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+                        }
+                      }}
+                    >
+                      <Box sx={{ 
+                        p: 2, 
+                        borderBottom: '1px solid', 
+                        borderColor: theme.palette.divider,
+                        display: 'flex',
+                        justifyContent: 'space-between'
+                      }}>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                            {employee.employee_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {employee.position}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {new Intl.NumberFormat('ru-RU', {
+                              style: 'currency',
+                              currency: 'RUB',
+                              minimumFractionDigits: 0
+                            }).format(employee.total_earnings || 0)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {employee.appointments_count || 0} {pluralize(employee.appointments_count || 0, ['запись', 'записи', 'записей'])}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      
+                      <Box sx={{ p: 2 }}>
+                        <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                          Статус сегодня:
+                        </Typography>
+                        
+                        {todaySchedule.is_working ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            {todaySchedule.checked_in ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <CheckCircleIcon color={todaySchedule.is_late ? "warning" : "success"} />
+                                <Box>
+                                  <Typography variant="body2">
+                                    Отмечен в {todaySchedule.checkin_time}
+                                  </Typography>
+                                  {todaySchedule.is_late && (
+                                    <Typography variant="caption" color="warning.main">
+                                      Опоздание более 15 минут
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+                            ) : (
+                              <Typography variant="body2">
+                                Сегодня работает с {todaySchedule.start_time} до {todaySchedule.end_time}
+                              </Typography>
+                            )}
+                            
+                            {!todaySchedule.checked_in && (
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                onClick={() => openCheckInDialog(employee)}
+                                startIcon={<HowToRegIcon />}
+                                sx={{
+                                  borderRadius: '20px',
+                                  background: 'linear-gradient(to right, #4f46e5, #3b82f6)',
+                                  textTransform: 'none',
+                                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                  '&:hover': {
+                                    background: 'linear-gradient(to right, #4338ca, #3b82f6)',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                  }
+                                }}
+                              >
+                                Отметить
+                              </Button>
+                            )}
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                            Не работает сегодня
+                          </Typography>
+                        )}
+                        
+                        {renderMobileSchedule(employee)}
+                      </Box>
+                    </Paper>
+                  );
+                })
+              }
+            </Box>
+          ))}
+        </Box>
+      )}
+      
+      {/* Check-in Dialog - Modern design */}
+      <Dialog
+        open={checkInDialogOpen}
+        onClose={closeCheckInDialog}
+        PaperProps={{
+          sx: {
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            maxWidth: isMobile ? '95%' : '400px'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '1px solid',
+          borderColor: theme.palette.divider,
+          pb: 1
+        }}>
+          Отметка о приходе на работу
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {selectedEmployee && (
+            <Box>
+              <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center',
+                gap: 1, 
+                mb: 2,
+                pb: 1,
+                borderBottom: '1px solid',
+                borderColor: alpha(theme.palette.divider, 0.5)
+              }}>
+                <Avatar 
+                  sx={{ 
+                    bgcolor: theme.palette.primary.main,
+                    background: 'linear-gradient(45deg, #4f46e5, #3b82f6)'
+                  }}
+                >
+                  {selectedEmployee.employee_name.charAt(0)}
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                    {selectedEmployee.employee_name}
+        </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {selectedEmployee.position}
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Дата:
+                </Typography>
+                <Chip 
+                  label={format(selectedDate, 'dd MMMM yyyy', { locale: ru })}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ borderRadius: '12px' }}
+                />
+              </Box>
+              
+              {checkInStatus.message && (
+                <Alert 
+                  severity={checkInStatus.error ? "error" : "success"}
+                  sx={{ 
+                    mb: 2,
+                    borderRadius: '12px'
+                  }}
+                >
+                  {checkInStatus.message}
+                </Alert>
+              )}
+              
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Время:
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                {format(new Date(), 'HH:mm:ss')}
+              </Typography>
+              
+              <Typography variant="body2" sx={{ mb: 1, textAlign: 'center', color: 'text.secondary' }}>
+                Вы уверены, что хотите отметить сотрудника как присутствующего на работе?
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 1 }}>
+          <Button 
+            onClick={closeCheckInDialog} 
+            disabled={checkingIn}
+            variant="outlined"
+            sx={{
+              borderRadius: '20px',
+              textTransform: 'none'
+            }}
+          >
+            Отмена
+          </Button>
+          <Button 
+            onClick={submitCheckIn}
+            variant="contained"
+            color="primary"
+            disabled={checkingIn || checkInStatus.success}
+            startIcon={checkingIn ? <CircularProgress size={20} /> : <CheckIcon />}
+            sx={{
+              borderRadius: '20px',
+              background: 'linear-gradient(to right, #4f46e5, #3b82f6)',
+              textTransform: 'none',
+              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)',
+              '&:hover': {
+                background: 'linear-gradient(to right, #4338ca, #3b82f6)',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.5)',
+              }
+            }}
+          >
+            {checkingIn ? 'Отмечаем...' : 'Отметить'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+const ReportsAndStatisticsWithContext = (props) => {
+  const contextValue = useReportsContext();
+  return (
+    <ReportsContext.Provider value={contextValue}>
+      <ReportsAndStatistics {...props} />
+    </ReportsContext.Provider>
+  );
+};
+
+export default ReportsAndStatisticsWithContext; 

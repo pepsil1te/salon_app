@@ -72,6 +72,60 @@ class StatisticsApi extends ApiClient {
     const response = await this.api.get(`${this.basePath}/financial`, { params });
     return response.data;
   }
+
+  /**
+   * Получить расписание сотрудников
+   * @param {Object} params - Параметры запроса
+   * @param {number} params.salonId - ID салона (опционально)
+   * @param {string} params.startDate - Начальная дата (YYYY-MM-DD)
+   * @param {string} params.endDate - Конечная дата (YYYY-MM-DD)
+   * @returns {Promise<Array>} - Список расписаний сотрудников
+   */
+  async getEmployeeSchedules(params = {}) {
+    try {
+      const response = await this.api.get(`${this.basePath}/employee-schedules`, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching employee schedules:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Получить данные о заработке сотрудников
+   * @param {Object} params - Параметры запроса
+   * @param {number} params.salonId - ID салона (опционально)
+   * @param {string} params.startDate - Начальная дата (YYYY-MM-DD)
+   * @param {string} params.endDate - Конечная дата (YYYY-MM-DD)
+   * @returns {Promise<Array>} - Список заработка сотрудников
+   */
+  async getEmployeeEarnings(params = {}) {
+    try {
+      const response = await this.api.get(`${this.basePath}/employee-earnings`, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching employee earnings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Отметить сотрудника о приходе на работу
+   * @param {Object} data - Данные для отметки
+   * @param {number} data.employeeId - ID сотрудника
+   * @param {string} data.date - Дата (YYYY-MM-DD)
+   * @param {string} data.checkinTime - Время прихода (опционально, ISO формат)
+   * @returns {Promise<Object>} - Результат операции
+   */
+  async checkInEmployee(data) {
+    try {
+      const response = await this.api.post(`${this.basePath}/employee-checkin`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking in employee:', error);
+      throw error;
+    }
+  }
 }
 
 export const statisticsApi = new StatisticsApi(); 
